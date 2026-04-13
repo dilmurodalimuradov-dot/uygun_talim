@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pr/domain/services/lesson_service.dart';
@@ -41,6 +43,10 @@ class _LessonPageState extends State<LessonPage> {
   VideoPlayerController? _videoController;
   VoidCallback? _videoListener;
 
+  Timer? _hideTimer;
+  bool _showPlayPause = true;
+  bool _isPausedByTap = false;
+
   @override
   void initState() {
     super.initState();
@@ -49,8 +55,16 @@ class _LessonPageState extends State<LessonPage> {
 
   @override
   void dispose() {
+    _hideTimer?.cancel();
     _disposeVideoController();
     super.dispose();
+  }
+
+  void _resetTimer() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _showPlayPause = false);
+    });
   }
 
   Future<void> _loadCourseContent() async {
@@ -137,7 +151,10 @@ class _LessonPageState extends State<LessonPage> {
     setState(() {
       _selectedLesson = lesson;
       _videoError = null;
+      _showPlayPause = true;
+      _isPausedByTap = false;
     });
+    _resetTimer();
     await _initializeVideo(lesson, autoplay: autoplay);
   }
 
@@ -185,6 +202,10 @@ class _LessonPageState extends State<LessonPage> {
       await controller.setVolume(_volume);
       if (autoplay) {
         await controller.play();
+        setState(() {
+          _isPausedByTap = false;
+        });
+        _resetTimer();
       }
 
       _videoListener = () {
@@ -225,10 +246,21 @@ class _LessonPageState extends State<LessonPage> {
   Future<void> _togglePlayPause() async {
     final controller = _videoController;
     if (controller == null || !controller.value.isInitialized) return;
+
     if (controller.value.isPlaying) {
       await controller.pause();
+      setState(() {
+        _isPausedByTap = true;
+        _showPlayPause = true;
+      });
+      _resetTimer();
     } else {
       await controller.play();
+      setState(() {
+        _isPausedByTap = false;
+        _showPlayPause = true;
+      });
+      _resetTimer();
     }
     if (mounted) setState(() {});
   }
@@ -236,6 +268,9 @@ class _LessonPageState extends State<LessonPage> {
   Future<void> _seekRelative(Duration delta) async {
     final controller = _videoController;
     if (controller == null || !controller.value.isInitialized) return;
+
+    setState(() => _showPlayPause = true);
+    _resetTimer();
 
     final current = controller.value.position;
     final duration = controller.value.duration;
@@ -350,7 +385,22 @@ class _LessonPageState extends State<LessonPage> {
             child: AspectRatio(
               aspectRatio: 16 / 9,
               child: GestureDetector(
-                onTap: _togglePlayPause,
+                onTap: () {
+                  if (_isPausedByTap) {
+                    _togglePlayPause();
+                  } else {
+                    setState(() {
+                      _showPlayPause = true;
+                      _isPausedByTap = true;
+                    });
+                    _resetTimer();
+
+                    final controller = _videoController;
+                    if (controller != null && controller.value.isInitialized && controller.value.isPlaying) {
+                      controller.pause();
+                    }
+                  }
+                },
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -364,7 +414,7 @@ class _LessonPageState extends State<LessonPage> {
                           child: VideoPlayer(controller),
                         ),
                       ),
-                    if (lesson != null)
+                    if (lesson != null && _showPlayPause)
                       Positioned(
                         left: 12,
                         right: 12,
@@ -412,26 +462,29 @@ class _LessonPageState extends State<LessonPage> {
                           ),
                         ),
                       ),
-                    if (!_isVideoLoading && (isReady || _videoError == null))
+                    if (!_isVideoLoading && (isReady || _videoError == null) && _showPlayPause)
                       Center(
-                        child: Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.95),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.25),
-                                blurRadius: 18,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                            color: const Color(0xFF101827),
-                            size: isPlaying ? 38 : 42,
+                        child: GestureDetector(
+                          onTap: _togglePlayPause,
+                          child: Container(
+                            width: 72,
+                            height: 72,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.95),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.25),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                              color: const Color(0xFF101827),
+                              size: isPlaying ? 38 : 42,
+                            ),
                           ),
                         ),
                       ),
@@ -483,7 +536,7 @@ class _LessonPageState extends State<LessonPage> {
   Widget _buildCourseContentCard() {
     final totalLessons = _lessonsByModule.values.fold<int>(
       0,
-      (sum, items) => sum + items.length,
+          (sum, items) => sum + items.length,
     );
 
     return Container(
@@ -606,13 +659,13 @@ class _LessonPageState extends State<LessonPage> {
           ),
           subtitle: lessons.isNotEmpty
               ? Text(
-                  '${lessons.length} ta dars',
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                )
+            '${lessons.length} ta dars',
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          )
               : null,
           children: [
             if (lessons.isEmpty)
@@ -818,6 +871,16 @@ class _LessonFullscreenPage extends StatefulWidget {
 class _LessonFullscreenPageState extends State<_LessonFullscreenPage> {
   late double _volume;
   late final VoidCallback _listener;
+  Timer? _hideTimer;
+  bool _showControls = true;
+  bool _isPausedByTap = false;
+
+  void _resetTimer() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _showControls = false);
+    });
+  }
 
   @override
   void initState() {
@@ -827,6 +890,7 @@ class _LessonFullscreenPageState extends State<_LessonFullscreenPage> {
       if (mounted) setState(() {});
     };
     widget.controller.addListener(_listener);
+    _resetTimer();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
@@ -839,6 +903,7 @@ class _LessonFullscreenPageState extends State<_LessonFullscreenPage> {
 
   @override
   void dispose() {
+    _hideTimer?.cancel();
     widget.controller.removeListener(_listener);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations(const [DeviceOrientation.portraitUp]);
@@ -847,16 +912,29 @@ class _LessonFullscreenPageState extends State<_LessonFullscreenPage> {
 
   Future<void> _togglePlayPause() async {
     if (!widget.controller.value.isInitialized) return;
+
     if (widget.controller.value.isPlaying) {
       await widget.controller.pause();
+      setState(() {
+        _isPausedByTap = true;
+        _showControls = true;
+      });
+      _resetTimer();
     } else {
       await widget.controller.play();
+      setState(() {
+        _isPausedByTap = false;
+        _showControls = true;
+      });
+      _resetTimer();
     }
     if (mounted) setState(() {});
   }
 
   Future<void> _seekRelative(Duration delta) async {
     if (!widget.controller.value.isInitialized) return;
+    setState(() => _showControls = true);
+    _resetTimer();
     final current = widget.controller.value.position;
     final duration = widget.controller.value.duration;
     final target = current + delta;
@@ -869,7 +947,11 @@ class _LessonFullscreenPageState extends State<_LessonFullscreenPage> {
 
   Future<void> _setVolume(double value) async {
     final next = value.clamp(0.0, 1.0).toDouble();
-    setState(() => _volume = next);
+    setState(() {
+      _volume = next;
+      _showControls = true;
+    });
+    _resetTimer();
     await widget.onVolumeChanged(next);
   }
 
@@ -882,7 +964,21 @@ class _LessonFullscreenPageState extends State<_LessonFullscreenPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: GestureDetector(
-        onTap: _togglePlayPause,
+        onTap: () {
+          if (_isPausedByTap) {
+            _togglePlayPause();
+          } else {
+            setState(() {
+              _showControls = true;
+              _isPausedByTap = true;
+            });
+            _resetTimer();
+
+            if (controller.value.isInitialized && controller.value.isPlaying) {
+              controller.pause();
+            }
+          }
+        },
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -891,105 +987,113 @@ class _LessonFullscreenPageState extends State<_LessonFullscreenPage> {
               Center(
                 child: AspectRatio(
                   aspectRatio:
-                      controller.value.aspectRatio == 0 ? 16 / 9 : controller.value.aspectRatio,
+                  controller.value.aspectRatio == 0 ? 16 / 9 : controller.value.aspectRatio,
                   child: VideoPlayer(controller),
                 ),
               ),
-            Positioned(
-              top: 18,
-              left: 18,
-              right: 18,
-              child: Row(
-                children: [
-                  _FsIconButton(
-                    icon: Icons.close_rounded,
-                    onTap: () => Navigator.of(context).pop(),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        shadows: [
-                          Shadow(color: Colors.black54, blurRadius: 8),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Center(
-              child: Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.92),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  size: isPlaying ? 38 : 42,
-                  color: const Color(0xFF101827),
-                ),
-              ),
-            ),
-            Positioned(
-              left: 18,
-              right: 18,
-              bottom: 18,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                ),
+            if (_showControls) ...[
+              Positioned(
+                top: 18,
+                left: 18,
+                right: 18,
                 child: Row(
                   children: [
                     _FsIconButton(
-                      icon: Icons.replay_10_rounded,
-                      onTap: () => _seekRelative(const Duration(seconds: -10)),
+                      icon: Icons.close_rounded,
+                      onTap: () => Navigator.of(context).pop(),
                     ),
-                    const SizedBox(width: 8),
-                    _FsIconButton(
-                      icon: _volume <= 0.01 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                      onTap: () => _setVolume(_volume <= 0.01 ? 0.88 : 0),
-                    ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     Expanded(
-                      child: SliderTheme(
-                        data: SliderThemeData(
-                          trackHeight: 6,
-                          inactiveTrackColor: const Color(0xFF374151),
-                          activeTrackColor: const Color(0xFF74E1B2),
-                          thumbColor: const Color(0xFF74E1B2),
-                          overlayColor: const Color(0xFF74E1B2).withValues(alpha: 0.14),
-                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-                        ),
-                        child: Slider(
-                          value: _volume,
-                          min: 0,
-                          max: 1,
-                          onChanged: _setVolume,
+                      child: Text(
+                        widget.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          shadows: [
+                            Shadow(color: Colors.black54, blurRadius: 8),
+                          ],
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    _FsIconButton(
-                      icon: Icons.fullscreen_exit_rounded,
-                      onTap: () => Navigator.of(context).pop(),
                     ),
                   ],
                 ),
               ),
-            ),
+              Center(
+                child: GestureDetector(
+                  onTap: _togglePlayPause,
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      size: isPlaying ? 38 : 42,
+                      color: const Color(0xFF101827),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 18,
+                right: 18,
+                bottom: 18,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  ),
+                  child: Row(
+                    children: [
+                      _FsIconButton(
+                        icon: Icons.replay_10_rounded,
+                        onTap: () => _seekRelative(const Duration(seconds: -10)),
+                      ),
+                      const SizedBox(width: 8),
+                      _FsIconButton(
+                        icon: _volume <= 0.01 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                        onTap: () => _setVolume(_volume <= 0.01 ? 0.88 : 0),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 150,
+                        child: Expanded(
+                          child: SliderTheme(
+                            data: SliderThemeData(
+                              trackHeight: 6,
+                              inactiveTrackColor: const Color(0xFF374151),
+                              activeTrackColor: const Color(0xFF74E1B2),
+                              thumbColor: const Color(0xFF74E1B2),
+                              overlayColor: const Color(0xFF74E1B2).withValues(alpha: 0.14),
+                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                              overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                            ),
+                            child: Slider(
+                              value: _volume,
+                              min: 0,
+                              max: 1,
+                              onChanged: _setVolume,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 550),
+                      _FsIconButton(
+                        icon: Icons.fullscreen_exit_rounded,
+                        onTap: () => Navigator.of(context).pop(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

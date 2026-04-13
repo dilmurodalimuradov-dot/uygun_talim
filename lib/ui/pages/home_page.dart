@@ -20,55 +20,53 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBody: true,
       body: _pages[_currentIndex],
       bottomNavigationBar: Container(
+        height: 105,
         decoration: BoxDecoration(
-          color: _navColor,
-          border: Border(
-            top: BorderSide(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
               color: Colors.black.withValues(alpha: 0.12),
               width: 1,
-            ),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
-              blurRadius: 24,
-              offset: const Offset(0, -8),
-            ),
-          ],
+
         ),
-        child: SafeArea(
-          top: false,
-          child: BottomNavigationBar(
-            elevation: 0,
-            backgroundColor: Colors.transparent,
-            selectedItemColor: Colors.white,
-            unselectedItemColor: Colors.white70,
-            showSelectedLabels: true,
-            showUnselectedLabels: true,
-            selectedFontSize: 12,
-            unselectedFontSize: 12,
-            type: BottomNavigationBarType.fixed,
-            currentIndex: _currentIndex,
-            onTap: (index) => setState(() => _currentIndex = index),
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.menu_book),
-                label: 'Kurslar',
-                tooltip: 'Kurslar',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.quiz),
-                label: 'Imtihonlar',
-                tooltip: 'Imtihonlar',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.person),
-                label: 'Profil',
-                tooltip: 'Profil',
-              ),
-            ],
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SafeArea(
+            top: false,
+            child: BottomNavigationBar(
+              elevation: 0,
+              backgroundColor: Colors.transparent,
+              selectedItemColor: AppColors.selected,
+              unselectedItemColor: AppColors.primary,
+              showSelectedLabels: true,
+              showUnselectedLabels: true,
+              selectedFontSize: 12,
+              unselectedFontSize: 12,
+              type: BottomNavigationBarType.fixed,
+              currentIndex: _currentIndex,
+              onTap: (index) => setState(() => _currentIndex = index),
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.menu_book),
+                  label: 'Kurslar',
+                  tooltip: 'Kurslar',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.quiz),
+                  label: 'Imtihonlar',
+                  tooltip: 'Imtihonlar',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.person),
+                  label: 'Profil',
+                  tooltip: 'Profil',
+                ),
+              ],
+            ),
           ),
         ),
       ),

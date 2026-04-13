@@ -14,8 +14,14 @@ class PaymentsPage extends StatelessWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('To‘lovlar'),
+          iconTheme: IconThemeData(color: Colors.white),
+          backgroundColor: AppColors.secondary,
+          title: const Text('To‘lovlar',style: TextStyle(color: Colors.white),),
           bottom: const TabBar(
+            dividerColor: Colors.white10,
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.black,
             tabs: [
               Tab(text: 'Mening'),
               Tab(text: 'Muvaffaqiyatli'),
