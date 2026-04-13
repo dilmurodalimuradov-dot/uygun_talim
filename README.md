@@ -1,45 +1,15 @@
 # Uygun Ta'lim
 
-Bu Flutter ilovasi `Uygun Ta'lim` loyihasi uchun yozilgan.
+# Vazifa 
 
-## Ishga tushirish
+Arxitekturani tog'girlash kerak 
 
-```bash
-git clone https://github.com/Sharof19/uygun_talim.git
-cd uygun_talim
-flutter pub get
-flutter run
-```
 
-## Ishlatilgan texnologiyalar
 
-- Flutter
-- Dart
-- Provider
-- HTTP API
-
-## Asosiy papkalar
-
-- `lib/domain/services/` - API bilan ishlash
-- `lib/domain/provider/` - state management
-- `lib/ui/pages/` - sahifalar
-- `lib/ui/routes/` - routing
-- `lib/main.dart` - kirish nuqtasi
-
-## Eslatma
-
-Ilova backend API bilan ishlaydi. Asosiy manzillar kod ichida yozilgan:
-
-- `https://api.uyguntalim.tsue.uz/api`
-- `https://api.uyguntalim.tsue.uz/api-v1`
-
-## Repository
-
-`https://github.com/Sharof19/uygun_talim`
 
 ## Fork Qilish
 
-O'quvchilar loyiha ustida xavfsiz ishlashi uchun `fork` qilishi kerak. Shunda asosiy repo siz tasdiqlamaguningizcha o'zgarmaydi.
+
 
 1. GitHub'da repo sahifasini oching:
    `https://github.com/Sharof19/uygun_talim`
@@ -69,5 +39,3 @@ git push origin main
 
 8. GitHub'da `Compare & pull request` tugmasini bosing
 9. Pull request yuboring
-
-Asosiy repo faqat maintainer tasdiqlab `merge` qilgandan keyin o'zgaradi.
