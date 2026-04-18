@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:pr/domain/provider/provider.dart';
-import 'package:pr/ui/routes/app_navigator.dart';
-import 'package:pr/ui/theme/app_colors.dart';
 import 'package:provider/provider.dart';
+
+import 'core/di/service_locator.dart';
+import 'core/providers/face_verification_provider.dart';
+import 'shared/routes/app_router.dart';
+import 'shared/theme/app_colors.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: AppColors.primary,
@@ -14,6 +17,8 @@ Future<void> main() async {
       statusBarBrightness: Brightness.dark,
     ),
   );
+
+  await ServiceLocator.init();
 
   runApp(
     MultiProvider(
@@ -34,8 +39,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       theme: ThemeData(colorScheme: colorScheme, useMaterial3: true),
       debugShowCheckedModeBanner: false,
-      initialRoute: AppNavigator.initRoute,
-      routes: AppNavigator.routes,
+      initialRoute: AppRouter.initialRoute,
+      routes: AppRouter.routes,
+      onUnknownRoute: AppRouter.onUnknownRoute,
     );
   }
 }

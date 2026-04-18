@@ -56,8 +56,6 @@ dependencies:
   device_info_plus: ^12.3.0
   flutter_file_downloader: ^2.1.1
 
-
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
