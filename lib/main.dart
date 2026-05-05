@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 
 import 'core/di/service_locator.dart';
@@ -9,6 +10,8 @@ import 'shared/theme/app_colors.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await dotenv.load(fileName: '.env');
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -39,6 +42,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       theme: ThemeData(colorScheme: colorScheme, useMaterial3: true),
       debugShowCheckedModeBanner: false,
+      navigatorKey: AppRouter.navigatorKey,
       initialRoute: AppRouter.initialRoute,
       routes: AppRouter.routes,
       onUnknownRoute: AppRouter.onUnknownRoute,

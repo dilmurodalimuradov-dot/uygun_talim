@@ -15,7 +15,7 @@ class LessonRemoteDataSourceImpl implements LessonRemoteDataSource {
   Future<List<LessonModel>> fetchLessons(String moduleId) async {
     final response = await _apiClient.get(
       ApiConstants.lessonsPath,
-      queryParameters: {'moduls': moduleId},
+      queryParameters: {'module': moduleId},
     );
     final decoded = JsonParser.decodeList(response);
     final lessons = decoded.map(LessonModel.fromJson).toList()

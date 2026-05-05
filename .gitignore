@@ -1,3 +1,7 @@
+# Environment variables — haqiqiy qiymatlar omborga yuklanmasin
+.env
+# .env.example esa yuklanadi (namuna sifatida)
+
 # Miscellaneous
 *.class
 *.log

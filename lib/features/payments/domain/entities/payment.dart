@@ -5,6 +5,9 @@ class Payment {
     required this.currency,
     required this.status,
     required this.createdAt,
+    this.courseTitle = '',
+    this.courseImage = '',
+    this.paidAt = '',
   });
 
   final String id;
@@ -12,9 +15,18 @@ class Payment {
   final String currency;
   final String status;
   final String createdAt;
+  final String courseTitle;
+  final String courseImage;
+  final String paidAt;
 
-  bool get isSuccess =>
-      status.toLowerCase() == 'success' ||
-      status.toLowerCase() == 'completed' ||
-      status.toLowerCase() == 'paid';
+  bool get isSuccess {
+    final s = status.toLowerCase().trim();
+    return s == 'success' ||
+        s == 'completed' ||
+        s == 'paid' ||
+        s == 'successful' ||
+        s == 'approved' ||
+        s == 'confirmed' ||
+        s == '2';
+  }
 }

@@ -1,16 +1,25 @@
-/// Barcha API-ga tegishli konstantalar shu yerda jamlangan.
-/// MUHIM: profile endpoints baseHost'ga nisbatan (prefix bor),
-/// auth endpoints baseUrlV1'ga nisbatan (prefix yo'q).
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class ApiConstants {
   ApiConstants._();
 
-  static const String baseHost = 'https://api.uyguntalim.tsue.uz';
-  static const String baseUrl = '$baseHost/api';
-  static const String baseUrlV1 = '$baseHost/api-v1';
+  static String get baseHost =>
+      dotenv.get('API_BASE_HOST', fallback: 'https://api.uyguntalim.tsue.uz');
+  static String get baseUrl => '$baseHost/api';
+  static String get baseUrlV1 => '$baseHost/api-v1';
 
-  // CSRF token — haqiqiy prodda .env fayldan o'qilishi kerak.
-  static const String csrfToken =
-      'x9Jv5GBLMZLVyTRu6rFmF2b8uORvppSDOHtWzbixuyB9RmgznaYKyNpuBDv3eOSb';
+  // CSRF token
+  static String get csrfToken => dotenv.get('API_CSRF_TOKEN', fallback: '');
+
+  // Timeouts
+  static Duration get connectTimeout => Duration(
+      seconds:
+          int.tryParse(dotenv.get('CONNECT_TIMEOUT_SEC', fallback: '15')) ??
+              15);
+  static Duration get receiveTimeout => Duration(
+      seconds:
+          int.tryParse(dotenv.get('RECEIVE_TIMEOUT_SEC', fallback: '30')) ??
+              30);
 
   // --- Auth (baseUrlV1'ga qo'shiladi) ---
   static const List<String> authorizationEndpoints = [
@@ -61,8 +70,4 @@ class ApiConstants {
   static const String certificatesPath = '/certificates/';
   static const String myCertificatesPath = '/certificates/my/';
   static String certificateDetailPath(String id) => '/certificates/$id/';
-
-  // --- Timeouts ---
-  static const Duration connectTimeout = Duration(seconds: 15);
-  static const Duration receiveTimeout = Duration(seconds: 30);
 }

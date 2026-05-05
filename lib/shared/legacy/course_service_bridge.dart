@@ -37,11 +37,13 @@ class CourseEnrollment {
     required this.id,
     required this.isPaid,
     required this.paymentDate,
+    this.paymentUrl = '',
   });
 
   final String id;
   final bool isPaid;
   final String paymentDate;
+  final String paymentUrl;
 
   factory CourseEnrollment.fromDomain(domain.CourseEnrollment e) =>
       CourseEnrollment(

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/utils/url_helper.dart';
 import '../../../../shared/legacy/course_service_bridge.dart';
 import '../../../../shared/legacy/token_storage_bridge.dart';
 import 'course_detail_page.dart';
@@ -772,18 +773,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
     );
   }
 
-  String _normalizeImageUrl(String url) {
-    if (url.startsWith('/')) {
-      return 'https://api.uyguntalim.tsue.uz$url';
-    }
-    if (url.isNotEmpty && !url.startsWith('http://') && !url.startsWith('https://')) {
-      return 'https://api.uyguntalim.tsue.uz/$url';
-    }
-    if (url.startsWith('http://api.uyguntalim.tsue.uz/')) {
-      return url.replaceFirst('http://', 'https://');
-    }
-    return url;
-  }
+  String _normalizeImageUrl(String url) => UrlHelper.normalizeMediaUrl(url);
 
   String _priceText(Course course) {
     if (!course.isPaid) return 'Bepul';

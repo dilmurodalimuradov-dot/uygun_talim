@@ -1,8 +1,3 @@
-/// Data qatlamida ishlatiladi. Datasource throw qiladi,
-/// repository tutib, Failure'ga aylantiradi.
-///
-/// DIQQAT: `dart:async` da ham `TimeoutException` bor,
-/// shuning uchun biz hammasiga `app_exc.` prefix bilan murojaat qilamiz.
 
 class ServerException implements Exception {
   ServerException(this.message, {this.statusCode});

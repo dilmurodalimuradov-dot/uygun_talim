@@ -12,16 +12,19 @@ import '../error/exceptions.dart' as app_exc;
 class ApiClient {
   ApiClient({
     http.Client? httpClient,
-    this.defaultTimeout = ApiConstants.receiveTimeout,
+    Duration? defaultTimeout,
     this.enableLogging = kDebugMode,
-  }) : _client = httpClient ?? http.Client();
-
+  }) : _client = httpClient ?? http.Client(),
+        defaultTimeout = defaultTimeout ?? ApiConstants.receiveTimeout;
   final http.Client _client;
   final Duration defaultTimeout;
   final bool enableLogging;
 
   /// Har so'rovda token o'qiladi (yangilangan bo'lishi mumkin).
   Future<String?> Function()? tokenProvider;
+
+  /// 401 xatolikda chaqiriladi — tokenni tozalab login sahifasiga yo'naltirish.
+  void Function()? onUnauthorized;
 
   // =========================================================================
   // Public methods
@@ -115,7 +118,6 @@ class ApiClient {
     }
 
     if (lastResponse != null) {
-      // Hamma endpoint 404 qaytardi — oxirgisini qayta ishlaymiz.
       return _handleResponse(lastResponse);
     }
 
@@ -143,9 +145,6 @@ class ApiClient {
   // Private helpers
   // =========================================================================
 
-  /// URL'ni to'g'ri qurish.
-  /// `path` absolyut URL bo'lishi mumkin yoki `/` bilan/bilansiz boshlanishi.
-  /// Ikkala holatda ham to'g'ri URL hosil bo'ladi.
   Uri _buildUri(
     String path,
     Map<String, String>? queryParameters,
@@ -240,6 +239,7 @@ class ApiClient {
     final message = _extractError(response);
 
     if (statusCode == 401 || statusCode == 403) {
+      onUnauthorized?.call();
       throw app_exc.UnauthorizedException(message);
     }
 

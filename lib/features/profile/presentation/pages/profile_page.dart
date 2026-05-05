@@ -675,74 +675,117 @@ class MyApplicationsPage extends StatelessWidget {
     ];
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text("Mening arizalarim"),
-        centerTitle: true,
-        elevation: 0,
+        title: const Text(
+          "Mening arizalarim",
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+          ),
+        ),
         backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.primary, AppColors.secondary],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
-        ),
+        elevation: 0,
+        foregroundColor: AppColors.textPrimary,
+        centerTitle: false,
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.primary, AppColors.secondary],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
+      body: RefreshIndicator(
+        onRefresh: () async {},
+        color: AppColors.primary,
+        backgroundColor: Colors.white,
+        strokeWidth: 3,
+        displacement: 40,
         child: ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           itemCount: sampleApplications.length,
           itemBuilder: (context, index) {
             final app = sampleApplications[index];
+            final isApproved = app['status'] == "Принято";
+
             return Container(
-              margin: const EdgeInsets.symmetric(vertical: 6),
-              padding: const EdgeInsets.all(14),
+              margin: const EdgeInsets.only(bottom: 10),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.stroke),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, 8),
+                    color: AppColors.textPrimary.withOpacity(0.02),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
-              child: Row(
-                children: [
-                  const Icon(Icons.assignment, color: AppColors.primary),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {},
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
                       children: [
-                        Text(
-                          app['title']!,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.assignment_rounded,
+                            size: 22,
                             color: AppColors.primary,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          app['status']!,
-                          style: TextStyle(color: Colors.grey.shade700),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                app['title']!,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: isApproved
+                                      ? const Color(0xFFE6F4EA)
+                                      : const Color(0xFFFFF3E0),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  app['status']!,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: isApproved
+                                        ? const Color(0xFF2E7D32)
+                                        : const Color(0xFFE65100),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: AppColors.textSecondary,
                         ),
                       ],
                     ),
                   ),
-                ],
+                ),
               ),
             );
           },

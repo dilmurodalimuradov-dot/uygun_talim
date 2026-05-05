@@ -1,12 +1,8 @@
 import 'dart:convert';
 
-/// JSON parsing yordamchisi.
-/// Ilgarigi `ApiParsing` mixin'ning o'rnida turadi.
-/// Har joyda takrorlanmasligi uchun shu yerga ko'chirildi.
 class JsonParser {
   JsonParser._();
 
-  /// Javob `List`, yoki `{results: [...]}`, yoki `{data: [...]}` bo'lishi mumkin.
   static List<Map<String, dynamic>> decodeList(dynamic body) {
     try {
       final decoded = body is String ? jsonDecode(body) : body;
@@ -27,7 +23,6 @@ class JsonParser {
     return <Map<String, dynamic>>[];
   }
 
-  /// Javob `{...}` yoki `{data: {...}}` bo'lishi mumkin.
   static Map<String, dynamic> decodeMap(dynamic body) {
     try {
       final decoded = body is String ? jsonDecode(body) : body;
@@ -42,7 +37,6 @@ class JsonParser {
     return <String, dynamic>{};
   }
 
-  /// Backenddan kelgan xato xabarini olish.
   static String extractErrorMessage(
     dynamic body, {
     required String fallback,
@@ -73,7 +67,6 @@ class JsonParser {
     return fallback;
   }
 
-  /// String/int/null — hammasini xavfsiz int'ga aylantiradi.
   static int parseInt(dynamic value) {
     if (value is int) return value;
     if (value is double) return value.toInt();

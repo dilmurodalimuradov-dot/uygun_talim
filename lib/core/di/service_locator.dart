@@ -1,5 +1,7 @@
 import '../../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../../features/auth/data/datasources/token_local_datasource.dart';
+import '../../shared/routes/app_router.dart';
+import '../../shared/routes/app_routes.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/domain/usecases/auth_usecases.dart';
@@ -35,13 +37,7 @@ import '../../features/tests/domain/repositories/test_repository.dart';
 import '../../features/tests/domain/usecases/test_usecases.dart';
 import '../network/api_client.dart';
 
-/// Dependency Injection konteyner.
-///
-/// `get_it` package ishlatmasdan qo'lda, chunki loyiha unchalik katta emas
-/// va yangi dependency qo'shmaslik afzal. Agar loyiha o'ssa, bu faylni
-/// `get_it` bilan almashtirish oson.
-///
-/// Ishlatish: `await ServiceLocator.init()` — `main()`da chaqiring.
+
 class ServiceLocator {
   ServiceLocator._();
 
@@ -86,6 +82,7 @@ class ServiceLocator {
   static late final PaymentRemoteDataSource paymentRemote;
   static late final PaymentRepository paymentRepository;
   static late final GetMyPayments getMyPayments;
+  static late final GetSuccessPayments getSuccessPayments;
   static late final CreatePayment createPayment;
 
   // --- Certificates ---
@@ -112,6 +109,14 @@ class ServiceLocator {
     tokenLocal = TokenLocalDataSourceImpl();
     // ApiClient'ga token provider ulaymiz — har so'rovda token o'qiladi.
     apiClient.tokenProvider = tokenLocal.getAccessToken;
+    // 401 bo'lganda tokenni tozalab login sahifasiga yo'naltirish.
+    apiClient.onUnauthorized = () async {
+      await tokenLocal.clearTokens();
+      AppRouter.navigatorKey.currentState?.pushNamedAndRemoveUntil(
+        AppRoutes.loginPage,
+        (route) => false,
+      );
+    };
 
     authRemote = AuthRemoteDataSourceImpl(apiClient);
     authRepository = AuthRepositoryImpl(
@@ -152,6 +157,7 @@ class ServiceLocator {
     paymentRemote = PaymentRemoteDataSourceImpl(apiClient);
     paymentRepository = PaymentRepositoryImpl(paymentRemote);
     getMyPayments = GetMyPayments(paymentRepository);
+    getSuccessPayments = GetSuccessPayments(paymentRepository);
     createPayment = CreatePayment(paymentRepository);
 
     // ==================== Certificates ====================

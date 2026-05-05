@@ -1,17 +1,6 @@
 import '../error/failures.dart';
 
-/// Repository qaytaradigan natija.
-/// Dartlike sealed class (Dart 3+). dartz package ishlatmay,
-/// loyihaga yangi dependency qo'shmaslik uchun.
-///
-/// Ishlatilishi:
-/// ```dart
-/// final result = await repository.getCourses();
-/// result.when(
-///   success: (courses) => print(courses),
-///   failure: (f) => print(f.message),
-/// );
-/// ```
+
 sealed class Result<T> {
   const Result();
 

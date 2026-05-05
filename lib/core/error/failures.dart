@@ -1,6 +1,4 @@
-/// Domain qatlamida ishlatiladigan xatolar.
-/// Exception'dan farqli — bu object, throw qilinmaydi,
-/// balki Either/Result orqali qaytariladi.
+
 abstract class Failure {
   const Failure(this.message);
   final String message;

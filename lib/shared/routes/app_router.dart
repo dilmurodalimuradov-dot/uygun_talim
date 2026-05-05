@@ -9,6 +9,8 @@ import 'app_routes.dart';
 class AppRouter {
   AppRouter._();
 
+  static final navigatorKey = GlobalKey<NavigatorState>();
+
   static const String initialRoute = AppRoutes.splashScreen;
 
   static Map<String, WidgetBuilder> get routes => {

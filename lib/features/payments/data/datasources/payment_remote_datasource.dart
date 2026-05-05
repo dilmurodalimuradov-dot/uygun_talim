@@ -17,13 +17,14 @@ class PaymentRemoteDataSourceImpl implements PaymentRemoteDataSource {
   @override
   Future<List<PaymentModel>> fetchMyPayments() async {
     final response = await _apiClient.get(ApiConstants.myPaymentsPath);
-    return JsonParser.decodeList(response).map(PaymentModel.fromJson).toList();
+    return _parseList(response).map(PaymentModel.fromJson).toList();
   }
 
   @override
   Future<List<PaymentModel>> fetchSuccessPayments() async {
-    final response = await _apiClient.get(ApiConstants.successPaymentsPath);
-    return JsonParser.decodeList(response).map(PaymentModel.fromJson).toList();
+    final response = await _apiClient.get(ApiConstants.myPaymentsPath);
+    final all = _parseList(response).map(PaymentModel.fromJson).toList();
+    return all.where((p) => p.isSuccess).toList();
   }
 
   @override
@@ -41,5 +42,15 @@ class PaymentRemoteDataSourceImpl implements PaymentRemoteDataSource {
       body: payload,
     );
     return JsonParser.decodeMap(response);
+  }
+
+  List<Map<String, dynamic>> _parseList(dynamic response) {
+    if (response is Map<String, dynamic>) {
+      final payments = response['payments'];
+      if (payments is List) {
+        return payments.whereType<Map<String, dynamic>>().toList();
+      }
+    }
+    return JsonParser.decodeList(response);
   }
 }

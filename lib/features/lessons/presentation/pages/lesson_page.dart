@@ -605,7 +605,7 @@ class _LessonPageState extends State<LessonPage> {
   Widget _buildModuleTile(Module module) {
     final lessons = _lessonsByModule[module.id] ?? const <Lesson>[];
     final isExpanded = _expandedModuleIds.contains(module.id);
-    final order = module.order > 0 ? module.order : (_modules.indexOf(module) + 1);
+    final order = _modules.indexOf(module) + 1;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -683,7 +683,7 @@ class _LessonPageState extends State<LessonPage> {
   }
 
   Widget _buildLessonTile(Lesson lesson, {required int fallbackOrder}) {
-    final lessonOrder = lesson.order > 0 ? lesson.order : fallbackOrder;
+    final lessonOrder = fallbackOrder;
     final isSelected = _selectedLesson?.id == lesson.id;
     final isPlaying = isSelected &&
         _videoController != null &&
@@ -713,7 +713,9 @@ class _LessonPageState extends State<LessonPage> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                '$lessonOrder-dars',
+                lesson.title.trim().isNotEmpty
+                    ? lesson.title.trim()
+                    : '$lessonOrder-dars',
                 style: TextStyle(
                   color: const Color(0xFF10233E),
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/url_helper.dart';
 import '../../../../shared/legacy/course_service_bridge.dart';
 import '../../../../shared/legacy/payment_service_bridge.dart';
 import '../../../../shared/legacy/token_storage_bridge.dart';
@@ -145,20 +146,13 @@ class _CourseDetailPageState extends State<CourseDetailPage>
         throw Exception('Access token topilmadi.');
       }
 
-      final response = await _paymentService.createPayment(token, {
-        'course_id': course.id,
-      });
-
-      final paymentUrl = _extractPaymentUrl(response);
-      if (paymentUrl.isEmpty) {
-        throw Exception('To‘lov havolasi kelmadi.');
-      }
-
-      if (Uri.tryParse(paymentUrl) == null || paymentUrl.trim().isEmpty) {
-        throw Exception('To‘lov havolasi noto‘g‘ri.');
-      }
+      final paymentUrl = await _paymentService.createPaymentAndGetUrl(
+        token,
+        course.id,
+      );
 
       _shouldRefreshOnResumeAfterPayment = true;
+      if (!mounted) return;
       final opened = await Navigator.of(context).push<bool>(
         MaterialPageRoute(
           builder: (_) => PaymentCheckoutPage(
@@ -595,18 +589,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
     );
   }
 
-  String _normalizeImageUrl(String url) {
-    if (url.startsWith('/')) {
-      return 'https://api.uyguntalim.tsue.uz$url';
-    }
-    if (url.isNotEmpty && !url.startsWith('http://') && !url.startsWith('https://')) {
-      return 'https://api.uyguntalim.tsue.uz/$url';
-    }
-    if (url.startsWith('http://api.uyguntalim.tsue.uz/')) {
-      return url.replaceFirst('http://', 'https://');
-    }
-    return url;
-  }
+  String _normalizeImageUrl(String url) => UrlHelper.normalizeMediaUrl(url);
 
   String _priceText(Course course) {
     if (!course.isPaid) return 'Bepul';
@@ -627,32 +610,4 @@ class _CourseDetailPageState extends State<CourseDetailPage>
     return enrollment.isPaid ? const Color(0xFF0A7AC2) : const Color(0xFF9A6A00);
   }
 
-  String _extractPaymentUrl(Map<String, dynamic> data) {
-    const directKeys = ['url', 'payment_url', 'pay_url', 'checkout_url', 'deeplink'];
-    for (final key in directKeys) {
-      final value = data[key];
-      if (value is String && _looksLikePaymentUrl(value)) {
-        return value.trim();
-      }
-    }
-
-    for (final value in data.values) {
-      if (value is String && _looksLikePaymentUrl(value)) {
-        return value.trim();
-      }
-      if (value is Map<String, dynamic>) {
-        final nested = _extractPaymentUrl(value);
-        if (nested.isNotEmpty) return nested;
-      }
-    }
-    return '';
-  }
-
-  bool _looksLikePaymentUrl(String value) {
-    final v = value.trim();
-    if (v.isEmpty) return false;
-    return v.startsWith('http://') ||
-        v.startsWith('https://') ||
-        v.startsWith('payme://');
-  }
 }
