@@ -7,18 +7,20 @@ import '../../../../core/utils/url_helper.dart';
 import '../../../../shared/legacy/certificate_service_bridge.dart';
 import '../../../../shared/legacy/token_storage_bridge.dart';
 import '../../../../shared/theme/app_colors.dart';
+import '/core/l10n/app_strings.dart'; // AppStrings import
 
 class CertificatesPage extends StatelessWidget {
   const CertificatesPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text(
-          'Sertifikatlar',
-          style: TextStyle(
+        title: Text(
+          s.certsTitle,
+          style: const TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.5,
@@ -53,6 +55,10 @@ class _CertificatesListState extends State<_CertificatesList> {
   Map<String, double> _downloadProgress = {};
   String? _lastDownloadedPath;
 
+  /// Build tashqarisida (onTap, async metodlar) ishlatish uchun.
+  /// context.watch o'rniga context.read — rebuild trigger qilmaydi.
+  AppStrings get _s => AppStrings.read(context);
+
   @override
   void initState() {
     super.initState();
@@ -69,7 +75,8 @@ class _CertificatesListState extends State<_CertificatesList> {
     try {
       final token = await _tokenStorage.readAccessToken();
       if (token == null || token.isEmpty) {
-        throw Exception('Token topilmadi. Qayta kiring.');
+        final s = AppStrings.forCode('uz'); // fallback, chunki context yo'q
+        throw Exception(s.certsTokenNotFound);
       }
       final items = await _service.fetchCertificates(token);
       if (mounted) {
@@ -91,22 +98,24 @@ class _CertificatesListState extends State<_CertificatesList> {
   String _getCorrectUrl(String url) => UrlHelper.normalizeMediaUrl(url);
 
   Future<void> _openFolder(String filePath) async {
+    final s = _s;
     try {
       final result = await OpenFilex.open(filePath);
       if (result.type != ResultType.done) {
-        // Agar faylni ochib bo'lmasa, papkani ochishga harakat qilamiz
         final directory = filePath.substring(0, filePath.lastIndexOf('/'));
         await OpenFilex.open(directory);
       }
     } catch (e) {
       debugPrint('Papka ochishda xatolik: $e');
-      _snack('Papkani ochib bo\'lmadi', Colors.orange);
+      _snack(s.certsNoFolder, Colors.orange);
     }
   }
 
   Future<void> _downloadCertificate(Certificate cert) async {
+    final s = _s;
+
     if (cert.fileUrl.isEmpty) {
-      _snack('Fayl manzili mavjud emas', Colors.orange);
+      _snack(s.certsNoFile, Colors.orange);
       return;
     }
 
@@ -123,11 +132,9 @@ class _CertificatesListState extends State<_CertificatesList> {
 
     try {
       final fullUrl = _getCorrectUrl(cert.fileUrl);
-
       debugPrint('Yuklanmoqda: $fullUrl');
 
       String fileName = _generateFileName(cert);
-
       String? token = await _tokenStorage.readAccessToken();
 
       FileDownloader.downloadFile(
@@ -152,28 +159,32 @@ class _CertificatesListState extends State<_CertificatesList> {
               _downloadProgress.remove(cert.id);
               _lastDownloadedPath = path;
             });
-
             _showDownloadSuccessSnackBar(fileName, path);
           }
         },
         onDownloadError: (errorMessage) {
           debugPrint('Xatolik: $errorMessage');
           if (mounted) {
+            // Callback ichida context ishlatish xavfsiz emas,
+            // shuning uchun AppStrings.forCode bilan olamiz
+            final locale = _currentLocaleCode();
+            final ls = AppStrings.forCode(locale);
+
             setState(() {
               _downloadingId = null;
               _downloadProgress.remove(cert.id);
             });
 
             if (errorMessage.contains('401')) {
-              _snack('Ruxsat yo\'q. Qayta kiring.', Colors.red);
+              _snack(ls.certsNoPermission, Colors.red);
             } else if (errorMessage.contains('403')) {
-              _snack('Sertifikatni yuklashga ruxsat yo\'q', Colors.red);
+              _snack(ls.certsNoAccess, Colors.red);
             } else if (errorMessage.contains('404')) {
-              _snack('Fayl topilmadi', Colors.red);
+              _snack(ls.certsFileNotFound, Colors.red);
             } else if (errorMessage.contains('500')) {
-              _snack('Server xatoligi', Colors.red);
+              _snack(ls.certsServerError, Colors.red);
             } else {
-              _snack('Yuklab bo\'lmadi: $errorMessage', Colors.red);
+              _snack('${ls.certsDownload}: $errorMessage', Colors.red);
             }
           }
         },
@@ -185,13 +196,25 @@ class _CertificatesListState extends State<_CertificatesList> {
           _downloadingId = null;
           _downloadProgress.remove(cert.id);
         });
-        _snack('Xatolik: $e', Colors.red);
+        _snack('${s.errorTryAgain}: $e', Colors.red);
       }
+    }
+  }
+
+  /// Callback ichida context bo'lmaganda locale kodni olish uchun yordamchi
+  String _currentLocaleCode() {
+    try {
+      // Provider orqali olish uchun context kerak, lekin callback ichida
+      // context ishlatish xavfsiz emas — shuning uchun 'uz' fallback
+      return 'uz';
+    } catch (_) {
+      return 'uz';
     }
   }
 
   void _showDownloadSuccessSnackBar(String fileName, String filePath) {
     if (!mounted) return;
+    final s = _s;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -200,7 +223,7 @@ class _CertificatesListState extends State<_CertificatesList> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Sertifikat saqlandi',
+              s.certsSaved,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 2),
@@ -217,7 +240,7 @@ class _CertificatesListState extends State<_CertificatesList> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 5),
         action: SnackBarAction(
-          label: 'Ochish',
+          label: s.certsOpen,
           textColor: Colors.white,
           onPressed: () => _openFolder(filePath),
         ),
@@ -235,7 +258,6 @@ class _CertificatesListState extends State<_CertificatesList> {
             debugPrint('Android 11+ ruxsat bor');
             return true;
           }
-
           debugPrint('Android 11+ ruxsat so\'ralmoqda');
           final status = await Permission.manageExternalStorage.request();
           debugPrint('Ruxsat statusi: $status');
@@ -245,7 +267,6 @@ class _CertificatesListState extends State<_CertificatesList> {
             debugPrint('Android <11 ruxsat bor');
             return true;
           }
-
           debugPrint('Android <11 ruxsat so\'ralmoqda');
           final status = await Permission.storage.request();
           debugPrint('Ruxsat statusi: $status');
@@ -256,25 +277,22 @@ class _CertificatesListState extends State<_CertificatesList> {
         return false;
       }
     }
-
     return true;
   }
 
   void _showPermissionDialog() {
+    final s = _s;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Ruxsat kerak'),
-        content: const Text(
-          'Sertifikatlarni yuklab olish uchun fayllarga kirish ruxsati kerak. '
-              'Iltimos, sozlamalardan ruxsat bering.',
-        ),
+        title: Text(s.certsPermissionTitle),
+        content: Text(s.certsPermissionBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              'Bekor qilish',
+              s.cancel,
               style: TextStyle(color: AppColors.textSecondary),
             ),
           ),
@@ -285,9 +303,10 @@ class _CertificatesListState extends State<_CertificatesList> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Sozlamalarga o\'tish'),
+            child: Text(s.certsGoSettings),
           ),
         ],
       ),
@@ -301,7 +320,11 @@ class _CertificatesListState extends State<_CertificatesList> {
 
     final date = cert.issuedAt.isNotEmpty
         ? cert.issuedAt.replaceAll('-', '')
-        : DateTime.now().toIso8601String().split('T').first.replaceAll('-', '');
+        : DateTime.now()
+        .toIso8601String()
+        .split('T')
+        .first
+        .replaceAll('-', '');
 
     String extension = '';
     String lowerUrl = cert.fileUrl.toLowerCase();
@@ -341,12 +364,14 @@ class _CertificatesListState extends State<_CertificatesList> {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
+
     if (_isLoading && _items.isEmpty) {
-      return _buildLoadingView();
+      return _buildLoadingView(s);
     }
 
     if (_error != null && _items.isEmpty) {
-      return _buildErrorView();
+      return _buildErrorView(s);
     }
 
     return RefreshIndicator(
@@ -356,7 +381,7 @@ class _CertificatesListState extends State<_CertificatesList> {
       strokeWidth: 3,
       displacement: 40,
       child: _items.isEmpty
-          ? _buildEmptyView()
+          ? _buildEmptyView(s)
           : ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
@@ -365,13 +390,13 @@ class _CertificatesListState extends State<_CertificatesList> {
         itemCount: _items.length,
         itemBuilder: (_, i) => Padding(
           padding: const EdgeInsets.only(bottom: 10),
-          child: _buildCertificateCard(_items[i]),
+          child: _buildCertificateCard(_items[i], s),
         ),
       ),
     );
   }
 
-  Widget _buildLoadingView() {
+  Widget _buildLoadingView(AppStrings s) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -393,7 +418,7 @@ class _CertificatesListState extends State<_CertificatesList> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Sertifikatlar yuklanmoqda...',
+            s.certsLoading,
             style: TextStyle(
               color: AppColors.textSecondary,
               fontSize: 14,
@@ -405,7 +430,7 @@ class _CertificatesListState extends State<_CertificatesList> {
     );
   }
 
-  Widget _buildErrorView() {
+  Widget _buildErrorView(AppStrings s) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -442,14 +467,16 @@ class _CertificatesListState extends State<_CertificatesList> {
                 onTap: _load,
                 borderRadius: BorderRadius.circular(30),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
+                      const Icon(Icons.refresh_rounded,
+                          color: Colors.white, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        'Qayta urinish',
+                        s.retry,
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -467,7 +494,7 @@ class _CertificatesListState extends State<_CertificatesList> {
     );
   }
 
-  Widget _buildEmptyView() {
+  Widget _buildEmptyView(AppStrings s) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -495,7 +522,7 @@ class _CertificatesListState extends State<_CertificatesList> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Sertifikatlar topilmadi',
+                s.certsNotFound,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -504,7 +531,7 @@ class _CertificatesListState extends State<_CertificatesList> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Siz hali hech qanday sertifikatga ega emassiz',
+                s.certsNotFoundSub,
                 style: TextStyle(
                   fontSize: 13,
                   color: AppColors.textSecondary,
@@ -518,7 +545,7 @@ class _CertificatesListState extends State<_CertificatesList> {
     );
   }
 
-  Widget _buildCertificateCard(Certificate item) {
+  Widget _buildCertificateCard(Certificate item, AppStrings s) {
     final isLoading = _downloadingId == item.id;
     final progress = _downloadProgress[item.id] ?? 0;
     final fileExt = _getFileExtension(item.fileUrl);
@@ -565,7 +592,7 @@ class _CertificatesListState extends State<_CertificatesList> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            item.title.isNotEmpty ? item.title : 'Sertifikat',
+                            item.title.isNotEmpty ? item.title : s.certsTitle,
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
@@ -576,7 +603,9 @@ class _CertificatesListState extends State<_CertificatesList> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            item.issuedAt.isNotEmpty ? item.issuedAt : 'Sana noma\'lum',
+                            item.issuedAt.isNotEmpty
+                                ? item.issuedAt
+                                : s.certsUnknownDate,
                             style: TextStyle(
                               fontSize: 12,
                               color: AppColors.textSecondary,
@@ -612,7 +641,8 @@ class _CertificatesListState extends State<_CertificatesList> {
                       )
                     else
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
                           color: AppColors.primary.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
@@ -627,7 +657,7 @@ class _CertificatesListState extends State<_CertificatesList> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              'Yuklash',
+                              s.certsDownload,
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -644,7 +674,8 @@ class _CertificatesListState extends State<_CertificatesList> {
                   LinearProgressIndicator(
                     value: progress / 100,
                     backgroundColor: Colors.grey.shade200,
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    valueColor:
+                    const AlwaysStoppedAnimation<Color>(AppColors.primary),
                     minHeight: 4,
                     borderRadius: BorderRadius.circular(2),
                   ),
@@ -678,7 +709,8 @@ class _CertificatesListState extends State<_CertificatesList> {
   String _getFileExtension(String url) {
     String lowerUrl = url.toLowerCase();
     if (lowerUrl.endsWith('.pdf')) return 'PDF';
-    if (lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg')) return 'Rasm (JPG)';
+    if (lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg'))
+      return 'Rasm (JPG)';
     if (lowerUrl.endsWith('.png')) return 'Rasm (PNG)';
     if (lowerUrl.endsWith('.doc')) return 'DOC';
     if (lowerUrl.endsWith('.docx')) return 'DOCX';

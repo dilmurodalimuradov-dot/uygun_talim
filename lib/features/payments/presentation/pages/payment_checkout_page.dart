@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../shared/theme/app_colors.dart';
+import '/core/l10n/app_strings.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class PaymentCheckoutPage extends StatefulWidget {
@@ -21,12 +22,13 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
 
   Future<void> _openPayme() async {
     if (_isLaunching) return;
+    final s = AppStrings.read(context);
 
     final raw = widget.paymentUrl.trim();
     final uri = Uri.tryParse(raw);
     if (uri == null || raw.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('To‘lov havolasi noto‘g‘ri.')),
+        SnackBar(content: Text(s.checkoutBadUrl)),
       );
       return;
     }
@@ -38,7 +40,7 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
         mode: LaunchMode.externalApplication,
       );
       if (!launched) {
-        throw Exception('Payme ilovasini ochib bo‘lmadi.');
+        throw Exception(s.checkoutPaymeError);
       }
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -56,15 +58,17 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5F7),
       appBar: AppBar(
         backgroundColor: const Color(0xFFF2F5F7),
         elevation: 0,
         scrolledUnderElevation: 0,
-        title: const Text(
-          'To‘lov usuli',
-          style: TextStyle(
+        title: Text(
+          s.checkoutTitle,
+          style: const TextStyle(
             color: Color(0xFF10233E),
             fontWeight: FontWeight.w700,
           ),
@@ -75,17 +79,17 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
             _MerchantCard(
-              title: 'Payme',
-              subtitle: 'Payme ilovasi orqali to‘lash',
+              title: s.checkoutPaymeLabel,
+              subtitle: s.checkoutPaymeSubtitle,
               icon: Icons.account_balance_wallet_outlined,
               accent: AppColors.primary,
               onTap: _isLaunching ? null : _openPayme,
               trailing: _isLaunching
                   ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2.2),
-                    )
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2.2),
+              )
                   : const Icon(Icons.arrow_forward_ios_rounded, size: 16),
             ),
           ],
@@ -127,16 +131,18 @@ class _MerchantCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: enabled ? const Color(0xFFE2E8E6) : const Color(0xFFEDF1F0),
+              color: enabled
+                  ? const Color(0xFFE2E8E6)
+                  : const Color(0xFFEDF1F0),
             ),
             boxShadow: enabled
                 ? [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ]
                 : null,
           ),
           child: Row(
@@ -158,7 +164,9 @@ class _MerchantCard extends StatelessWidget {
                     Text(
                       title,
                       style: TextStyle(
-                        color: enabled ? const Color(0xFF10233E) : const Color(0xFF7D8892),
+                        color: enabled
+                            ? const Color(0xFF10233E)
+                            : const Color(0xFF7D8892),
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                       ),
@@ -167,7 +175,9 @@ class _MerchantCard extends StatelessWidget {
                     Text(
                       subtitle,
                       style: TextStyle(
-                        color: enabled ? const Color(0xFF5D6B79) : const Color(0xFF9AA5AE),
+                        color: enabled
+                            ? const Color(0xFF5D6B79)
+                            : const Color(0xFF9AA5AE),
                         fontSize: 12,
                       ),
                     ),
@@ -176,9 +186,13 @@ class _MerchantCard extends StatelessWidget {
               ),
               trailing ??
                   Icon(
-                    enabled ? Icons.arrow_forward_ios_rounded : Icons.lock_outline_rounded,
+                    enabled
+                        ? Icons.arrow_forward_ios_rounded
+                        : Icons.lock_outline_rounded,
                     size: 16,
-                    color: enabled ? const Color(0xFF7B8794) : const Color(0xFFB5BDC4),
+                    color: enabled
+                        ? const Color(0xFF7B8794)
+                        : const Color(0xFFB5BDC4),
                   ),
             ],
           ),

@@ -1,6 +1,5 @@
 import '../error/failures.dart';
 
-
 sealed class Result<T> {
   const Result();
 
@@ -8,14 +7,14 @@ sealed class Result<T> {
   bool get isFailure => this is ResultFailure<T>;
 
   T? get dataOrNull => switch (this) {
-        Success<T>(data: final d) => d,
-        ResultFailure<T>() => null,
-      };
+    Success<T>(data: final d) => d,
+    ResultFailure<T>() => null,
+  };
 
   Failure? get failureOrNull => switch (this) {
-        Success<T>() => null,
-        ResultFailure<T>(failure: final f) => f,
-      };
+    Success<T>() => null,
+    ResultFailure<T>(failure: final f) => f,
+  };
 
   R when<R>({
     required R Function(T data) success,
@@ -26,6 +25,18 @@ sealed class Result<T> {
       ResultFailure<T>(failure: final f) => failure(f),
     };
   }
+
+  // ============ FOLD METODI QO'SHILDI ============
+  R fold<R>({
+    required R Function(Failure failure) onFailure,
+    required R Function(T data) onSuccess,
+  }) {
+    return switch (this) {
+      Success<T>(data: final d) => onSuccess(d),
+      ResultFailure<T>(failure: final f) => onFailure(f),
+    };
+  }
+// =============================================
 }
 
 final class Success<T> extends Result<T> {

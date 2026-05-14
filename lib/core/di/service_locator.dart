@@ -1,3 +1,7 @@
+import 'dart:developer';
+
+import 'package:flutter/material.dart';
+
 import '../../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../../features/auth/data/datasources/token_local_datasource.dart';
 import '../../shared/routes/app_router.dart';
@@ -36,15 +40,15 @@ import '../../features/tests/data/repositories/test_repository_impl.dart';
 import '../../features/tests/domain/repositories/test_repository.dart';
 import '../../features/tests/domain/usecases/test_usecases.dart';
 import '../network/api_client.dart';
-
+import '../utils/result.dart';
 
 class ServiceLocator {
   ServiceLocator._();
 
-  // --- Core ---
+  // ==================== Core ====================
   static late final ApiClient apiClient;
 
-  // --- Auth ---
+  // ==================== Auth ====================
   static late final TokenLocalDataSource tokenLocal;
   static late final AuthRemoteDataSource authRemote;
   static late final AuthRepository authRepository;
@@ -53,7 +57,7 @@ class ServiceLocator {
   static late final CheckAuthStatus checkAuthStatus;
   static late final Logout logout;
 
-  // --- Courses ---
+  // ==================== Courses ====================
   static late final CourseRemoteDataSource courseRemote;
   static late final CourseRepository courseRepository;
   static late final GetCourses getCourses;
@@ -61,36 +65,36 @@ class ServiceLocator {
   static late final StartCourse startCourse;
   static late final GetCourseProgress getCourseProgress;
 
-  // --- Modules ---
+  // ==================== Modules ====================
   static late final ModuleRemoteDataSource moduleRemote;
   static late final ModuleRepository moduleRepository;
   static late final GetModules getModules;
 
-  // --- Lessons ---
+  // ==================== Lessons ====================
   static late final LessonRemoteDataSource lessonRemote;
   static late final LessonRepository lessonRepository;
   static late final GetLessons getLessons;
 
-  // --- Tests ---
+  // ==================== Tests ====================
   static late final TestRemoteDataSource testRemote;
   static late final TestRepository testRepository;
   static late final GetTests getTests;
   static late final GetTestDetail getTestDetail;
   static late final SubmitTest submitTest;
 
-  // --- Payments ---
+  // ==================== Payments ====================
   static late final PaymentRemoteDataSource paymentRemote;
   static late final PaymentRepository paymentRepository;
   static late final GetMyPayments getMyPayments;
   static late final GetSuccessPayments getSuccessPayments;
   static late final CreatePayment createPayment;
 
-  // --- Certificates ---
+  // ==================== Certificates ====================
   static late final CertificateRemoteDataSource certificateRemote;
   static late final CertificateRepository certificateRepository;
   static late final GetMyCertificates getMyCertificates;
 
-  // --- Profile ---
+  // ==================== Profile ====================
   static late final ProfileRemoteDataSource profileRemote;
   static late final ProfileRepository profileRepository;
   static late final GetProfile getProfile;
@@ -102,79 +106,129 @@ class ServiceLocator {
   static Future<void> init() async {
     if (_initialized) return;
 
-    // ==================== Core ====================
-    apiClient = ApiClient();
+    try {
+      log('ServiceLocator: Initialization started...');
 
-    // ==================== Auth ====================
-    tokenLocal = TokenLocalDataSourceImpl();
-    // ApiClient'ga token provider ulaymiz — har so'rovda token o'qiladi.
-    apiClient.tokenProvider = tokenLocal.getAccessToken;
-    // 401 bo'lganda tokenni tozalab login sahifasiga yo'naltirish.
-    apiClient.onUnauthorized = () async {
-      await tokenLocal.clearTokens();
-      AppRouter.navigatorKey.currentState?.pushNamedAndRemoveUntil(
-        AppRoutes.loginPage,
-        (route) => false,
+      // ==================== Core ====================
+      apiClient = ApiClient();
+
+      // ==================== Auth ====================
+      tokenLocal = TokenLocalDataSourceImpl();
+
+      // ApiClient'ga token provider ulaymiz — har so'rovda token o'qiladi.
+      apiClient.tokenProvider = tokenLocal.getAccessToken;
+
+      // 401 bo'lganda tokenni tozalab login sahifasiga yo'naltirish.
+      apiClient.onUnauthorized = () async {
+        await tokenLocal.clearTokens();
+        if (AppRouter.navigatorKey.currentContext != null) {
+          AppRouter.navigatorKey.currentState?.pushNamedAndRemoveUntil(
+            AppRoutes.loginPage,
+                (route) => false,
+          );
+        }
+      };
+
+      authRemote = AuthRemoteDataSourceImpl(apiClient);
+      authRepository = AuthRepositoryImpl(
+        remoteDataSource: authRemote,
+        localDataSource: tokenLocal,
       );
-    };
+      getAuthorizationUrl = GetAuthorizationUrl(authRepository);
+      exchangeCodeForToken = ExchangeCodeForToken(authRepository);
+      checkAuthStatus = CheckAuthStatus(authRepository);
+      logout = Logout(authRepository);
 
-    authRemote = AuthRemoteDataSourceImpl(apiClient);
-    authRepository = AuthRepositoryImpl(
-      remoteDataSource: authRemote,
-      localDataSource: tokenLocal,
-    );
-    getAuthorizationUrl = GetAuthorizationUrl(authRepository);
-    exchangeCodeForToken = ExchangeCodeForToken(authRepository);
-    checkAuthStatus = CheckAuthStatus(authRepository);
-    logout = Logout(authRepository);
+      log('ServiceLocator: Auth initialized');
 
-    // ==================== Courses ====================
-    courseRemote = CourseRemoteDataSourceImpl(apiClient);
-    courseRepository = CourseRepositoryImpl(courseRemote);
-    getCourses = GetCourses(courseRepository);
-    getCourseDetail = GetCourseDetail(courseRepository);
-    startCourse = StartCourse(courseRepository);
-    getCourseProgress = GetCourseProgress(courseRepository);
+      // ==================== Courses ====================
+      courseRemote = CourseRemoteDataSourceImpl(apiClient);
+      courseRepository = CourseRepositoryImpl(courseRemote);
+      getCourses = GetCourses(courseRepository);
+      getCourseDetail = GetCourseDetail(courseRepository);
+      startCourse = StartCourse(courseRepository);
+      getCourseProgress = GetCourseProgress(courseRepository);
 
-    // ==================== Modules ====================
-    moduleRemote = ModuleRemoteDataSourceImpl(apiClient);
-    moduleRepository = ModuleRepositoryImpl(moduleRemote);
-    getModules = GetModules(moduleRepository);
+      log('ServiceLocator: Courses initialized');
 
-    // ==================== Lessons ====================
-    lessonRemote = LessonRemoteDataSourceImpl(apiClient);
-    lessonRepository = LessonRepositoryImpl(lessonRemote);
-    getLessons = GetLessons(lessonRepository);
+      // ==================== Modules ====================
+      moduleRemote = ModuleRemoteDataSourceImpl(apiClient);
+      moduleRepository = ModuleRepositoryImpl(moduleRemote);
+      getModules = GetModules(moduleRepository);
 
-    // ==================== Tests ====================
-    testRemote = TestRemoteDataSourceImpl(apiClient);
-    testRepository = TestRepositoryImpl(testRemote);
-    getTests = GetTests(testRepository);
-    getTestDetail = GetTestDetail(testRepository);
-    submitTest = SubmitTest(testRepository);
+      log('ServiceLocator: Modules initialized');
 
-    // ==================== Payments ====================
-    paymentRemote = PaymentRemoteDataSourceImpl(apiClient);
-    paymentRepository = PaymentRepositoryImpl(paymentRemote);
-    getMyPayments = GetMyPayments(paymentRepository);
-    getSuccessPayments = GetSuccessPayments(paymentRepository);
-    createPayment = CreatePayment(paymentRepository);
+      // ==================== Lessons ====================
+      lessonRemote = LessonRemoteDataSourceImpl(apiClient);
+      lessonRepository = LessonRepositoryImpl(lessonRemote);
+      getLessons = GetLessons(lessonRepository);
 
-    // ==================== Certificates ====================
-    certificateRemote = CertificateRemoteDataSourceImpl(apiClient);
-    certificateRepository = CertificateRepositoryImpl(certificateRemote);
-    getMyCertificates = GetMyCertificates(certificateRepository);
+      log('ServiceLocator: Lessons initialized');
 
-    // ==================== Profile ====================
-    profileRemote = ProfileRemoteDataSourceImpl(apiClient);
-    profileRepository = ProfileRepositoryImpl(profileRemote);
-    getProfile = GetProfile(profileRepository);
+      // ==================== Tests ====================
+      testRemote = TestRemoteDataSourceImpl(apiClient);
+      testRepository = TestRepositoryImpl(testRemote);
+      getTests = GetTests(testRepository);
+      getTestDetail = GetTestDetail(testRepository);
+      submitTest = SubmitTest(testRepository);
 
-    _initialized = true;
+      log('ServiceLocator: Tests initialized');
+
+      // ==================== Payments ====================
+      paymentRemote = PaymentRemoteDataSourceImpl(apiClient);
+      paymentRepository = PaymentRepositoryImpl(paymentRemote);
+      getMyPayments = GetMyPayments(paymentRepository);
+      getSuccessPayments = GetSuccessPayments(paymentRepository);
+      createPayment = CreatePayment(paymentRepository);
+
+      log('ServiceLocator: Payments initialized');
+
+      // ==================== Certificates ====================
+      certificateRemote = CertificateRemoteDataSourceImpl(apiClient);
+      certificateRepository = CertificateRepositoryImpl(certificateRemote);
+      getMyCertificates = GetMyCertificates(certificateRepository);
+
+      log('ServiceLocator: Certificates initialized');
+
+      // ==================== Profile ====================
+      profileRemote = ProfileRemoteDataSourceImpl(apiClient);
+      profileRepository = ProfileRepositoryImpl(profileRemote);
+      getProfile = GetProfile(profileRepository);
+
+      log('ServiceLocator: Profile initialized');
+
+      _initialized = true;
+      log('ServiceLocator: Initialization completed successfully');
+    } catch (e, stackTrace) {
+      log('ServiceLocator: Initialization failed - $e',
+          error: e,
+          stackTrace: stackTrace);
+      rethrow;
+    }
   }
 
-  static void dispose() {
+  /// Faqat test uchun - initializatsiyani reset qilish
+  static void resetForTesting() {
+    _initialized = false;
+  }
+
+  /// Barcha resurslarni tozalash
+  static Future<void> dispose() async {
+    if (!_initialized) return;
+
     apiClient.dispose();
     _initialized = false;
+
+    log('ServiceLocator: Disposed');
+  }
+
+  /// Initializatsiya holatini tekshirish
+  static bool get isInitialized => _initialized;
+
+  /// Token tokini tozalash (logout uchun)
+  static Future<void> clearAuth() async {
+    if (tokenLocal != null) {
+      await tokenLocal.clearTokens();
+    }
   }
 }

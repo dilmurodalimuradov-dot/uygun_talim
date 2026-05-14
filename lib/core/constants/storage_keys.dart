@@ -5,4 +5,5 @@ class StorageKeys {
   static const String accessToken = 'access_token';
   static const String refreshToken = 'refresh_token';
   static const String isFaceVerified = 'isFaceVerified';
+  static const String selectedLanguage = 'selected_language';
 }

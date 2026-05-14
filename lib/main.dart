@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/di/service_locator.dart';
 import 'core/providers/face_verification_provider.dart';
+import 'core/providers/locale_provider.dart';
 import 'shared/routes/app_router.dart';
 import 'shared/theme/app_colors.dart';
 
@@ -27,6 +29,7 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => FaceVerificationProvider()),
+        ChangeNotifierProvider(create: (_) => LocaleProvider()),
       ],
       child: const MyApp(),
     ),
@@ -38,7 +41,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>().locale;
     final colorScheme = ColorScheme.fromSeed(seedColor: AppColors.primary);
+
     return MaterialApp(
       theme: ThemeData(colorScheme: colorScheme, useMaterial3: true),
       debugShowCheckedModeBanner: false,
@@ -46,6 +51,15 @@ class MyApp extends StatelessWidget {
       initialRoute: AppRouter.initialRoute,
       routes: AppRouter.routes,
       onUnknownRoute: AppRouter.onUnknownRoute,
+
+      // --- Localization ---
+      locale: locale,
+      supportedLocales: LocaleProvider.supportedLocales,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
     );
   }
 }

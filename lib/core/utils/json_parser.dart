@@ -10,13 +10,18 @@ class JsonParser {
         return decoded.whereType<Map<String, dynamic>>().toList();
       }
       if (decoded is Map<String, dynamic>) {
-        final results = decoded['results'];
-        if (results is List) {
-          return results.whereType<Map<String, dynamic>>().toList();
+        // Keng tarqalgan pagination/wrapper kalitlarini tekshiramiz
+        for (final key in ['results', 'data', 'items', 'tests', 'list', 'records']) {
+          final value = decoded[key];
+          if (value is List) {
+            return value.whereType<Map<String, dynamic>>().toList();
+          }
         }
-        final data = decoded['data'];
-        if (data is List) {
-          return data.whereType<Map<String, dynamic>>().toList();
+        // Agar bitta map ichida birinchi List topilsa, uni qaytaramiz
+        for (final entry in decoded.entries) {
+          if (entry.value is List) {
+            return (entry.value as List).whereType<Map<String, dynamic>>().toList();
+          }
         }
       }
     } catch (_) {}

@@ -5,6 +5,7 @@ import '../../../../shared/legacy/payment_service_bridge.dart';
 import '../../../../shared/legacy/token_storage_bridge.dart';
 import '../../../../shared/widgets/json_detail_page.dart';
 import '../../../../shared/theme/app_colors.dart';
+import '/core/l10n/app_strings.dart';
 import 'payment_checkout_page.dart';
 
 class PaymentsPage extends StatefulWidget {
@@ -38,12 +39,14 @@ class _PaymentsPageState extends State<PaymentsPage> with TickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
+
     return Scaffold(
       backgroundColor: _pageBackground,
       appBar: AppBar(
-        title: const Text(
-          'To\'lovlar',
-          style: TextStyle(
+        title: Text(
+          s.paymentsTitle,
+          style: const TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.5,
@@ -79,9 +82,9 @@ class _PaymentsPageState extends State<PaymentsPage> with TickerProviderStateMix
               ),
               dividerColor: Colors.transparent,
               indicatorSize: TabBarIndicatorSize.tab,
-              tabs: const [
-                Tab(text: 'Mening'),
-                Tab(text: 'Muvaffaqiyatli'),
+              tabs: [
+                Tab(text: s.paymentsTabMine),
+                Tab(text: s.paymentsTabSuccess),
               ],
             ),
           ),
@@ -142,8 +145,9 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
     try {
       final token = await _tokenStorage.readAccessToken();
       if (token == null || token.isEmpty) {
+        final s = AppStrings.read(context);
         setState(() {
-          _errorMessage = 'Access token topilmadi.';
+          _errorMessage = s.paymentsTokenNotFound;
           _items = [];
         });
         return;
@@ -166,12 +170,13 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
   }
 
   Future<void> _openStatus(Payment payment) async {
+    final s = AppStrings.read(context);
     try {
       final token = await _tokenStorage.readAccessToken();
       if (!mounted) return;
       if (token == null || token.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Access token topilmadi.')),
+          SnackBar(content: Text(s.paymentsTokenNotFound)),
         );
         return;
       }
@@ -179,7 +184,7 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
       if (!mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => JsonDetailPage(title: 'To\'lov holati', data: detail),
+          builder: (_) => JsonDetailPage(title: s.paymentsStatusTitle, data: detail),
         ),
       );
     } catch (error) {
@@ -193,11 +198,12 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
   }
 
   Future<void> _createPayment() async {
+    final s = AppStrings.read(context);
     final token = await _tokenStorage.readAccessToken();
     if (!mounted) return;
     if (token == null || token.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Access token topilmadi.')),
+        SnackBar(content: Text(s.paymentsTokenNotFound)),
       );
       return;
     }
@@ -228,7 +234,7 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
 
     if (unpaidCourses.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("To'lanadigan kurslar topilmadi.")),
+        SnackBar(content: Text(s.paymentsNoPendingCourses)),
       );
       return;
     }
@@ -313,6 +319,7 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
   }
 
   Widget _buildLoadingView() {
+    final s = AppStrings.read(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -334,7 +341,7 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
           ),
           const SizedBox(height: 16),
           Text(
-            'To\'lovlar yuklanmoqda...',
+            s.paymentsLoading,
             style: TextStyle(
               color: AppColors.textSecondary,
               fontSize: 14,
@@ -347,6 +354,7 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
   }
 
   Widget _buildErrorView() {
+    final s = AppStrings.read(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -387,10 +395,10 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
+                      const Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        'Qayta urinish',
+                        s.retry,
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -409,6 +417,8 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
   }
 
   Widget _buildEmptyView() {
+    final s = AppStrings.read(context);
+    final isMine = widget.mode == _PaymentMode.mine;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
       decoration: BoxDecoration(
@@ -433,9 +443,7 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
           ),
           const SizedBox(height: 16),
           Text(
-            widget.mode == _PaymentMode.mine
-                ? "To'lovlar topilmadi"
-                : "Muvaffaqiyatli to'lovlar topilmadi",
+            isMine ? s.paymentsNotFound : s.paymentsSuccessNotFound,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -444,9 +452,7 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
           ),
           const SizedBox(height: 8),
           Text(
-            widget.mode == _PaymentMode.mine
-                ? "Yangi to'lov yaratish uchun yuqoridagi tugmani bosing"
-                : "Hali hech qanday muvaffaqiyatli to'lov amalga oshirilmagan",
+            isMine ? s.paymentsNotFoundHint : s.paymentsSuccessNotFoundHint,
             style: TextStyle(
               fontSize: 13,
               color: AppColors.textSecondary,
@@ -459,6 +465,7 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
   }
 
   Widget _buildCreateButton() {
+    final s = AppStrings.read(context);
     return Material(
       color: AppColors.primary,
       borderRadius: BorderRadius.circular(16),
@@ -483,7 +490,7 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
                 const Icon(Icons.add, color: Colors.white, size: 22),
               const SizedBox(width: 8),
               Text(
-                _isCreating ? "Yaratilmoqda..." : "To'lov yaratish",
+                _isCreating ? s.paymentsCreating : s.paymentsCreate,
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
@@ -498,11 +505,14 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
   }
 
   Widget _buildPaymentCard(Payment payment) {
+    final s = AppStrings.read(context);
     final amount = payment.amount.isNotEmpty ? payment.amount : '—';
     final currency = payment.currency.isNotEmpty ? payment.currency : 'UZS';
     final isSuccess = payment.status.toLowerCase() == 'success';
-    final statusLabel = isSuccess ? 'Muvaffaqiyatli' : _localizeStatus(payment.status);
-    final courseTitle = payment.courseTitle.isNotEmpty ? payment.courseTitle : 'Kurs';
+    final statusLabel = isSuccess ? s.paymentsStatusSuccess : _localizeStatus(s, payment.status);
+    final courseTitle = payment.courseTitle.isNotEmpty
+        ? payment.courseTitle
+        : s.paymentsCourseFallback;
     final date = _formatDate(
       payment.paidAt.isNotEmpty ? payment.paidAt : payment.createdAt,
     );
@@ -543,9 +553,13 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
-                          isSuccess ? Icons.check_circle_rounded : Icons.payments_rounded,
+                          isSuccess
+                              ? Icons.check_circle_rounded
+                              : Icons.payments_rounded,
                           size: 20,
-                          color: isSuccess ? const Color(0xFF2E7D32) : AppColors.primary,
+                          color: isSuccess
+                              ? const Color(0xFF2E7D32)
+                              : AppColors.primary,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -581,7 +595,8 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: isSuccess
                               ? const Color(0xFFE6F4EA)
@@ -624,13 +639,18 @@ class _PaymentsListState extends State<_PaymentsList> with AutomaticKeepAliveCli
     );
   }
 
-  String _localizeStatus(String status) {
+  String _localizeStatus(AppStrings s, String status) {
     switch (status.toLowerCase()) {
-      case 'cancelled': return 'Bekor qilindi';
-      case 'waiting': return 'Kutilmoqda';
-      case 'pending': return 'Jarayonda';
-      case 'refund': return 'Qaytarildi';
-      default: return status;
+      case 'cancelled':
+        return s.paymentsStatusCancelled;
+      case 'waiting':
+        return s.paymentsStatusWaiting;
+      case 'pending':
+        return s.paymentsStatusPending;
+      case 'refund':
+        return s.paymentsStatusRefund;
+      default:
+        return status;
     }
   }
 
@@ -652,6 +672,7 @@ class _CoursePickerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -679,7 +700,7 @@ class _CoursePickerSheet extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Text(
-            'Kursni tanlang',
+            s.paymentsPickCourse,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
@@ -700,14 +721,16 @@ class _CoursePickerSheet extends StatelessWidget {
               ),
               itemBuilder: (ctx, i) {
                 final c = courses[i];
-                final price = c.price.isNotEmpty ? '${c.price} ${c.currency}'.trim() : '';
+                final price =
+                c.price.isNotEmpty ? '${c.price} ${c.currency}'.trim() : '';
                 return Material(
                   color: Colors.transparent,
                   child: InkWell(
                     onTap: () => Navigator.of(ctx).pop(c),
                     borderRadius: BorderRadius.circular(12),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 12, horizontal: 4),
                       child: Row(
                         children: [
                           Container(

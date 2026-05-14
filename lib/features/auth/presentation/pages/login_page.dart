@@ -4,6 +4,7 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import '../../../../shared/legacy/auth_service_bridge.dart';
 import '../../../../shared/legacy/token_storage_bridge.dart';
+import '../../../../core/l10n/app_strings.dart';
 import 'oauth_webview_page.dart';
 import '../../../../shared/routes/app_routes.dart';
 import '../../../../shared/theme/app_colors.dart';
@@ -26,6 +27,9 @@ class _LoginPageState extends State<LoginPage> {
   String? _errorMessage;
   String? _infoMessage;
 
+  /// Async va event handler metodlar uchun — listen: false
+  AppStrings get _s => AppStrings.read(context);
+
   @override
   void initState() {
     super.initState();
@@ -40,7 +44,7 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _initDeepLinks() async {
     _linkSubscription = _appLinks.uriLinkStream.listen(
-      (uri) => _handleIncomingUri(uri),
+          (uri) => _handleIncomingUri(uri),
       onError: (_) {},
     );
 
@@ -60,8 +64,9 @@ class _LoginPageState extends State<LoginPage> {
       final description = uri.queryParameters['error_description'];
       if (!mounted) return;
       setState(() {
-        _errorMessage =
-            (description != null && description.isNotEmpty) ? description : oauthError;
+        _errorMessage = (description != null && description.isNotEmpty)
+            ? description
+            : oauthError;
       });
       return;
     }
@@ -75,6 +80,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _requestAuthorizationUrl() async {
+    final s = _s; // read — async metod
     setState(() {
       _isLoadingLink = true;
       _errorMessage = null;
@@ -85,7 +91,7 @@ class _LoginPageState extends State<LoginPage> {
       final url = await _authService.fetchAuthorizationUrl();
       if (!mounted) return;
       setState(() {
-        _infoMessage = 'Havola tayyor. Kirish oynasi ochilmoqda...';
+        _infoMessage = s.loginLinkReady;
       });
       await _openAuthorizationUrl(url);
     } catch (error) {
@@ -103,11 +109,12 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _openAuthorizationUrl(String url) async {
+    final s = _s; // read — async metod
     final uri = Uri.tryParse(url);
     if (uri == null) {
       if (!mounted) return;
       setState(() {
-        _infoMessage = 'Havola noto‘g‘ri formatda.';
+        _infoMessage = s.loginBadLink;
       });
       return;
     }
@@ -123,12 +130,13 @@ class _LoginPageState extends State<LoginPage> {
       _handleIncomingUri(callbackUri);
     } else {
       setState(() {
-        _infoMessage = 'Kirish jarayoni bekor qilindi.';
+        _infoMessage = s.loginCancelled;
       });
     }
   }
 
   Future<void> _submitCode(String code) async {
+    final s = _s; // read — async metod
     setState(() {
       _isSubmittingCode = true;
       _errorMessage = null;
@@ -142,13 +150,11 @@ class _LoginPageState extends State<LoginPage> {
       String? refreshToken;
 
       void readTokensFromMap(Map<String, dynamic> source) {
-        accessToken =
-            accessToken ??
+        accessToken = accessToken ??
             source['access'] as String? ??
             source['access_token'] as String? ??
             source['token'] as String?;
-        refreshToken =
-            refreshToken ??
+        refreshToken = refreshToken ??
             source['refresh'] as String? ??
             source['refresh_token'] as String?;
       }
@@ -170,7 +176,7 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       if (accessToken?.isEmpty ?? true) {
-        throw Exception('Token topilmadi. Iltimos, qayta urinib ko‘ring.');
+        throw Exception(s.loginTokenNotFound);
       }
       final resolvedAccessToken = accessToken!;
 
@@ -220,7 +226,8 @@ class _LoginPageState extends State<LoginPage> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 440),
                 child: Column(
@@ -252,7 +259,9 @@ class _LoginPageState extends State<LoginPage> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white.withValues(alpha: 0.15),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.3),
+              ),
             ),
             child: const Icon(
               Icons.school_rounded,
@@ -276,6 +285,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildLoginCard(ThemeData theme) {
+    final s = AppStrings.of(context); // build ichida — of() to'g'ri
     final textTheme = theme.textTheme;
 
     return Container(
@@ -296,7 +306,7 @@ class _LoginPageState extends State<LoginPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'OAuth2 orqali kirish',
+            s.loginTitle,
             style: textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               color: theme.colorScheme.primary,
@@ -304,7 +314,7 @@ class _LoginPageState extends State<LoginPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            "Kirish havolasini oling. Brauzerda avtorizatsiyadan so‘ng ilova avtomatik qaytadi.",
+            s.loginDescription,
             style: textTheme.bodyMedium?.copyWith(color: Colors.black54),
           ),
           const SizedBox(height: 20),
@@ -321,17 +331,17 @@ class _LoginPageState extends State<LoginPage> {
             ),
             icon: _isLoadingLink
                 ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.4,
-                      color: Colors.white,
-                    ),
-                  )
+              height: 18,
+              width: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.4,
+                color: Colors.white,
+              ),
+            )
                 : const Icon(Icons.link),
-            label: Text(_isLoadingLink
-                ? 'Havola olinmoqda...'
-                : 'Kirish havolasini olish'),
+            label: Text(
+              _isLoadingLink ? s.loginLoadingLink : s.loginGetLink,
+            ),
           ),
           const SizedBox(height: 16),
           if (_infoMessage != null) ...[

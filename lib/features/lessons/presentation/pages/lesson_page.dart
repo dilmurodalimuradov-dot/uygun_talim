@@ -6,6 +6,7 @@ import '../../../../shared/legacy/lesson_service_bridge.dart';
 import '../../../../shared/legacy/module_service_bridge.dart';
 import '../../../../shared/legacy/token_storage_bridge.dart';
 import '../../../../shared/theme/app_colors.dart';
+import '../../../../core/l10n/app_strings.dart';
 import 'package:video_player/video_player.dart';
 
 class LessonPage extends StatefulWidget {
@@ -47,6 +48,9 @@ class _LessonPageState extends State<LessonPage> {
   bool _showPlayPause = true;
   bool _isPausedByTap = false;
 
+  /// Event handler va async metodlar uchun — listen: false
+  AppStrings get _s => AppStrings.read(context);
+
   @override
   void initState() {
     super.initState();
@@ -76,7 +80,7 @@ class _LessonPageState extends State<LessonPage> {
     try {
       final token = await _tokenStorageService.readAccessToken();
       if (token == null || token.isEmpty) {
-        throw Exception('Access token topilmadi.');
+        throw Exception(_s.coursesTokenNotFound);
       }
 
       final modules = await _moduleService.fetchModules(
@@ -87,7 +91,8 @@ class _LessonPageState extends State<LessonPage> {
       final lessonsMap = <String, List<Lesson>>{};
       for (final module in modules) {
         try {
-          final lessons = await _lessonService.fetchLessons(token, moduleId: module.id);
+          final lessons =
+          await _lessonService.fetchLessons(token, moduleId: module.id);
           lessonsMap[module.id] = lessons;
         } catch (_) {
           lessonsMap[module.id] = const [];
@@ -129,7 +134,7 @@ class _LessonPageState extends State<LessonPage> {
         if (!mounted) return;
         setState(() {
           _selectedLesson = null;
-          _videoError = 'Bu kurs uchun darslar topilmadi.';
+          _videoError = _s.lessonNotStarted;
         });
         _disposeVideoController();
       }
@@ -166,7 +171,7 @@ class _LessonPageState extends State<LessonPage> {
       if (!mounted) return;
       setState(() {
         _isVideoLoading = false;
-        _videoError = 'Bu dars uchun video havola topilmadi.';
+        _videoError = _s.lessonNotStarted;
       });
       return;
     }
@@ -176,7 +181,7 @@ class _LessonPageState extends State<LessonPage> {
       if (!mounted) return;
       setState(() {
         _isVideoLoading = false;
-        _videoError = 'Video havola noto‘g‘ri.';
+        _videoError = _s.errorTryAgain;
       });
       return;
     }
@@ -228,7 +233,7 @@ class _LessonPageState extends State<LessonPage> {
       if (!mounted) return;
       setState(() {
         _isVideoLoading = false;
-        _videoError = 'Videoni ochib bo‘lmadi.';
+        _videoError = _s.errorTryAgain;
       });
     }
   }
@@ -316,6 +321,8 @@ class _LessonPageState extends State<LessonPage> {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5F7),
       appBar: AppBar(
@@ -348,7 +355,7 @@ class _LessonPageState extends State<LessonPage> {
               ],
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: _buildCourseContentCard(),
+                child: _buildCourseContentCard(s),
               ),
             ],
           ),
@@ -381,7 +388,8 @@ class _LessonPageState extends State<LessonPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(16)),
             child: AspectRatio(
               aspectRatio: 16 / 9,
               child: GestureDetector(
@@ -395,9 +403,11 @@ class _LessonPageState extends State<LessonPage> {
                     });
                     _resetTimer();
 
-                    final controller = _videoController;
-                    if (controller != null && controller.value.isInitialized && controller.value.isPlaying) {
-                      controller.pause();
+                    final ctrl = _videoController;
+                    if (ctrl != null &&
+                        ctrl.value.isInitialized &&
+                        ctrl.value.isPlaying) {
+                      ctrl.pause();
                     }
                   }
                 },
@@ -451,7 +461,8 @@ class _LessonPageState extends State<LessonPage> {
                     if (!_isVideoLoading && _videoError != null)
                       Center(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 18),
+                          padding:
+                          const EdgeInsets.symmetric(horizontal: 18),
                           child: Text(
                             _videoError!,
                             textAlign: TextAlign.center,
@@ -462,7 +473,9 @@ class _LessonPageState extends State<LessonPage> {
                           ),
                         ),
                       ),
-                    if (!_isVideoLoading && (isReady || _videoError == null) && _showPlayPause)
+                    if (!_isVideoLoading &&
+                        (isReady || _videoError == null) &&
+                        _showPlayPause)
                       Center(
                         child: GestureDetector(
                           onTap: _togglePlayPause,
@@ -474,14 +487,17 @@ class _LessonPageState extends State<LessonPage> {
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.25),
+                                  color:
+                                  Colors.black.withValues(alpha: 0.25),
                                   blurRadius: 18,
                                   offset: const Offset(0, 8),
                                 ),
                               ],
                             ),
                             child: Icon(
-                              isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                              isPlaying
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
                               color: const Color(0xFF101827),
                               size: isPlaying ? 38 : 42,
                             ),
@@ -496,7 +512,8 @@ class _LessonPageState extends State<LessonPage> {
           Container(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
             decoration: const BoxDecoration(
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
+              borderRadius:
+              BorderRadius.vertical(bottom: Radius.circular(16)),
               gradient: LinearGradient(
                 colors: [Color(0xFF0E1732), Color(0xFF111A37)],
                 begin: Alignment.centerLeft,
@@ -509,21 +526,24 @@ class _LessonPageState extends State<LessonPage> {
                   width: 54,
                   label: '10s',
                   icon: Icons.replay_10_rounded,
-                  onTap: () => _seekRelative(const Duration(seconds: -10)),
+                  onTap: () =>
+                      _seekRelative(const Duration(seconds: -10)),
                 ),
                 const Spacer(),
                 _buildIconControl(
-                  _volume <= 0.01 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                  onTap: () => _setVolume(_volume <= 0.01 ? 0.88 : 0),
+                  _volume <= 0.01
+                      ? Icons.volume_off_rounded
+                      : Icons.volume_up_rounded,
+                  onTap: () =>
+                      _setVolume(_volume <= 0.01 ? 0.88 : 0),
                 ),
                 const SizedBox(width: 8),
-                _buildVolumeSlider(width: 120, value: _volume, onChanged: _setVolume),
+                _buildVolumeSlider(
+                    width: 120, value: _volume, onChanged: _setVolume),
                 const SizedBox(width: 8),
                 _buildIconControl(
                   Icons.open_in_full_rounded,
-                  onTap: () {
-                    _openFullscreen();
-                  },
+                  onTap: _openFullscreen,
                 ),
               ],
             ),
@@ -533,7 +553,7 @@ class _LessonPageState extends State<LessonPage> {
     );
   }
 
-  Widget _buildCourseContentCard() {
+  Widget _buildCourseContentCard(AppStrings s) {
     final totalLessons = _lessonsByModule.values.fold<int>(
       0,
           (sum, items) => sum + items.length,
@@ -551,10 +571,10 @@ class _LessonPageState extends State<LessonPage> {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Kurs tarkibi',
-                  style: TextStyle(
+                  s.lessonTitle,
+                  style: const TextStyle(
                     color: Color(0xFF10233E),
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -562,14 +582,15 @@ class _LessonPageState extends State<LessonPage> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: const Color(0xFFE5EAF0)),
                 ),
                 child: Text(
-                  'Kurs progressi${totalLessons > 0 ? ' ($totalLessons)' : ''}',
+                  '${s.coursesProgress}${totalLessons > 0 ? ' ($totalLessons)' : ''}',
                   style: const TextStyle(
                     color: Color(0xFF334155),
                     fontSize: 12,
@@ -587,12 +608,13 @@ class _LessonPageState extends State<LessonPage> {
                 child: SizedBox(
                   width: 24,
                   height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                  child:
+                  CircularProgressIndicator(strokeWidth: 2.4),
                 ),
               ),
             )
           else if (_modules.isEmpty)
-            _buildInfoBanner('Modullar yoki darslar topilmadi.', isError: false)
+            _buildInfoBanner(s.lessonNotStarted, isError: false)
           else
             Column(
               children: _modules.map(_buildModuleTile).toList(),
@@ -603,6 +625,7 @@ class _LessonPageState extends State<LessonPage> {
   }
 
   Widget _buildModuleTile(Module module) {
+    final s = AppStrings.of(context);
     final lessons = _lessonsByModule[module.id] ?? const <Lesson>[];
     final isExpanded = _expandedModuleIds.contains(module.id);
     final order = _modules.indexOf(module) + 1;
@@ -619,8 +642,10 @@ class _LessonPageState extends State<LessonPage> {
         child: ExpansionTile(
           key: PageStorageKey<String>('module-${module.id}'),
           initiallyExpanded: isExpanded,
-          tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-          childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          tilePadding:
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          childrenPadding:
+          const EdgeInsets.fromLTRB(12, 0, 12, 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -659,7 +684,7 @@ class _LessonPageState extends State<LessonPage> {
           ),
           subtitle: lessons.isNotEmpty
               ? Text(
-            '${lessons.length} ta dars',
+            '${lessons.length} ${s.examsQuestions}',
             style: const TextStyle(
               color: Color(0xFF64748B),
               fontSize: 12,
@@ -669,12 +694,13 @@ class _LessonPageState extends State<LessonPage> {
               : null,
           children: [
             if (lessons.isEmpty)
-              _buildInfoBanner('Bu modulda darslar topilmadi.', isError: false)
+              _buildInfoBanner(s.lessonNotStarted, isError: false)
             else
               ...lessons.asMap().entries.map((entry) {
                 final index = entry.key;
                 final lesson = entry.value;
-                return _buildLessonTile(lesson, fallbackOrder: index + 1);
+                return _buildLessonTile(lesson,
+                    fallbackOrder: index + 1);
               }),
           ],
         ),
@@ -683,7 +709,6 @@ class _LessonPageState extends State<LessonPage> {
   }
 
   Widget _buildLessonTile(Lesson lesson, {required int fallbackOrder}) {
-    final lessonOrder = fallbackOrder;
     final isSelected = _selectedLesson?.id == lesson.id;
     final isPlaying = isSelected &&
         _videoController != null &&
@@ -695,19 +720,28 @@ class _LessonPageState extends State<LessonPage> {
       borderRadius: BorderRadius.circular(10),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding:
+        const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFE3F6E9) : const Color(0xFFF8FAFC),
+          color: isSelected
+              ? const Color(0xFFE3F6E9)
+              : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? const Color(0xFFC3ECD0) : const Color(0xFFEAF0F4),
+            color: isSelected
+                ? const Color(0xFFC3ECD0)
+                : const Color(0xFFEAF0F4),
           ),
         ),
         child: Row(
           children: [
             Icon(
-              isPlaying ? Icons.pause_circle_outline_rounded : Icons.play_circle_outline_rounded,
-              color: isSelected ? AppColors.primary : const Color(0xFF7A8794),
+              isPlaying
+                  ? Icons.pause_circle_outline_rounded
+                  : Icons.play_circle_outline_rounded,
+              color: isSelected
+                  ? AppColors.primary
+                  : const Color(0xFF7A8794),
               size: 20,
             ),
             const SizedBox(width: 10),
@@ -715,10 +749,12 @@ class _LessonPageState extends State<LessonPage> {
               child: Text(
                 lesson.title.trim().isNotEmpty
                     ? lesson.title.trim()
-                    : '$lessonOrder-dars',
+                    : '$fallbackOrder-dars',
                 style: TextStyle(
                   color: const Color(0xFF10233E),
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  fontWeight: isSelected
+                      ? FontWeight.w700
+                      : FontWeight.w600,
                   fontSize: 14,
                 ),
               ),
@@ -807,9 +843,12 @@ class _LessonPageState extends State<LessonPage> {
           inactiveTrackColor: const Color(0xFF2B3556),
           activeTrackColor: const Color(0xFF74E1B2),
           thumbColor: const Color(0xFF74E1B2),
-          overlayColor: const Color(0xFF74E1B2).withValues(alpha: 0.14),
-          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-          overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+          overlayColor:
+          const Color(0xFF74E1B2).withValues(alpha: 0.14),
+          thumbShape:
+          const RoundSliderThumbShape(enabledThumbRadius: 7),
+          overlayShape:
+          const RoundSliderOverlayShape(overlayRadius: 12),
         ),
         child: Slider(
           value: value.clamp(0.0, 1.0).toDouble(),
@@ -822,12 +861,19 @@ class _LessonPageState extends State<LessonPage> {
   }
 
   Widget _buildInfoBanner(String text, {required bool isError}) {
-    final color = isError ? const Color(0xFFD14343) : const Color(0xFF2C5B88);
-    final bg = isError ? const Color(0xFFFFF3F3) : const Color(0xFFF4F8FB);
-    final icon = isError ? Icons.error_outline_rounded : Icons.info_outline_rounded;
+    final color = isError
+        ? const Color(0xFFD14343)
+        : const Color(0xFF2C5B88);
+    final bg = isError
+        ? const Color(0xFFFFF3F3)
+        : const Color(0xFFF4F8FB);
+    final icon = isError
+        ? Icons.error_outline_rounded
+        : Icons.info_outline_rounded;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding:
+      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(12),
@@ -853,6 +899,10 @@ class _LessonPageState extends State<LessonPage> {
   }
 }
 
+// ─────────────────────────────────────────────
+// Fullscreen page
+// ─────────────────────────────────────────────
+
 class _LessonFullscreenPage extends StatefulWidget {
   const _LessonFullscreenPage({
     required this.controller,
@@ -867,7 +917,8 @@ class _LessonFullscreenPage extends StatefulWidget {
   final Future<void> Function(double value) onVolumeChanged;
 
   @override
-  State<_LessonFullscreenPage> createState() => _LessonFullscreenPageState();
+  State<_LessonFullscreenPage> createState() =>
+      _LessonFullscreenPageState();
 }
 
 class _LessonFullscreenPageState extends State<_LessonFullscreenPage> {
@@ -908,7 +959,8 @@ class _LessonFullscreenPageState extends State<_LessonFullscreenPage> {
     _hideTimer?.cancel();
     widget.controller.removeListener(_listener);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    SystemChrome.setPreferredOrientations(const [DeviceOrientation.portraitUp]);
+    SystemChrome.setPreferredOrientations(
+        const [DeviceOrientation.portraitUp]);
     super.dispose();
   }
 
@@ -976,7 +1028,8 @@ class _LessonFullscreenPageState extends State<_LessonFullscreenPage> {
             });
             _resetTimer();
 
-            if (controller.value.isInitialized && controller.value.isPlaying) {
+            if (controller.value.isInitialized &&
+                controller.value.isPlaying) {
               controller.pause();
             }
           }
@@ -988,8 +1041,9 @@ class _LessonFullscreenPageState extends State<_LessonFullscreenPage> {
             if (isReady)
               Center(
                 child: AspectRatio(
-                  aspectRatio:
-                  controller.value.aspectRatio == 0 ? 16 / 9 : controller.value.aspectRatio,
+                  aspectRatio: controller.value.aspectRatio == 0
+                      ? 16 / 9
+                      : controller.value.aspectRatio,
                   child: VideoPlayer(controller),
                 ),
               ),
@@ -1015,7 +1069,8 @@ class _LessonFullscreenPageState extends State<_LessonFullscreenPage> {
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                           shadows: [
-                            Shadow(color: Colors.black54, blurRadius: 8),
+                            Shadow(
+                                color: Colors.black54, blurRadius: 8),
                           ],
                         ),
                       ),
@@ -1034,7 +1089,9 @@ class _LessonFullscreenPageState extends State<_LessonFullscreenPage> {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      isPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
                       size: isPlaying ? 38 : 42,
                       color: const Color(0xFF101827),
                     ),
@@ -1046,47 +1103,59 @@ class _LessonFullscreenPageState extends State<_LessonFullscreenPage> {
                 right: 18,
                 bottom: 18,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.55),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                    border: Border.all(
+                        color:
+                        Colors.white.withValues(alpha: 0.08)),
                   ),
                   child: Row(
                     children: [
                       _FsIconButton(
                         icon: Icons.replay_10_rounded,
-                        onTap: () => _seekRelative(const Duration(seconds: -10)),
+                        onTap: () => _seekRelative(
+                            const Duration(seconds: -10)),
                       ),
                       const SizedBox(width: 8),
                       _FsIconButton(
-                        icon: _volume <= 0.01 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                        onTap: () => _setVolume(_volume <= 0.01 ? 0.88 : 0),
+                        icon: _volume <= 0.01
+                            ? Icons.volume_off_rounded
+                            : Icons.volume_up_rounded,
+                        onTap: () =>
+                            _setVolume(_volume <= 0.01 ? 0.88 : 0),
                       ),
                       const SizedBox(width: 8),
-                      Container(
+                      SizedBox(
                         width: 150,
-                        child: Expanded(
-                          child: SliderTheme(
-                            data: SliderThemeData(
-                              trackHeight: 6,
-                              inactiveTrackColor: const Color(0xFF374151),
-                              activeTrackColor: const Color(0xFF74E1B2),
-                              thumbColor: const Color(0xFF74E1B2),
-                              overlayColor: const Color(0xFF74E1B2).withValues(alpha: 0.14),
-                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-                              overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-                            ),
-                            child: Slider(
-                              value: _volume,
-                              min: 0,
-                              max: 1,
-                              onChanged: _setVolume,
-                            ),
+                        child: SliderTheme(
+                          data: SliderThemeData(
+                            trackHeight: 6,
+                            inactiveTrackColor:
+                            const Color(0xFF374151),
+                            activeTrackColor:
+                            const Color(0xFF74E1B2),
+                            thumbColor: const Color(0xFF74E1B2),
+                            overlayColor: const Color(0xFF74E1B2)
+                                .withValues(alpha: 0.14),
+                            thumbShape:
+                            const RoundSliderThumbShape(
+                                enabledThumbRadius: 7),
+                            overlayShape:
+                            const RoundSliderOverlayShape(
+                                overlayRadius: 12),
+                          ),
+                          child: Slider(
+                            value: _volume,
+                            min: 0,
+                            max: 1,
+                            onChanged: _setVolume,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 550),
+                      const Spacer(),
                       _FsIconButton(
                         icon: Icons.fullscreen_exit_rounded,
                         onTap: () => Navigator.of(context).pop(),

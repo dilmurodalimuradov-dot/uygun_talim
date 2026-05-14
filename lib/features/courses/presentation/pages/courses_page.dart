@@ -1,7 +1,9 @@
 import 'dart:async';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // Qo'shildi
+import '../../../../core/l10n/app_strings.dart'; // Qo'shildi
+import '../../../../core/providers/locale_provider.dart'; // Qo'shildi
 import '../../../../core/utils/url_helper.dart';
 import '../../../../shared/legacy/course_service_bridge.dart';
 import '../../../../shared/legacy/token_storage_bridge.dart';
@@ -40,7 +42,9 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: false);
-    _loadCourses();
+
+    // Kontekst tayyor bo'lishi bilan darslarni yuklash
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadCourses());
   }
 
   @override
@@ -58,12 +62,15 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
       _courses = [];
     });
 
+    // Tilga mos stringlarni olish uchun vaqtinchalik 's'
+    final s = AppStrings.forCode(context.read<LocaleProvider>().locale.languageCode);
+
     try {
       final token = await _tokenStorageService.readAccessToken();
       if (token == null || token.isEmpty) {
         if (mounted) {
           setState(() {
-            _errorMessage = 'Access token topilmadi. Iltimos, qayta kiring.';
+            _errorMessage = s.coursesTokenNotFound;
             _isLoading = false;
           });
         }
@@ -73,7 +80,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
       final courses = await _courseService.fetchCourses(token).timeout(
         const Duration(seconds: 30),
         onTimeout: () {
-          throw Exception('Server bilan bog\'lanish vaqti tugadi');
+          throw Exception(s.coursesTimeout);
         },
       );
 
@@ -88,21 +95,26 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
     } on TimeoutException {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Server bilan bog\'lanish vaqti tugadi. Internetni tekshiring.';
+        _errorMessage = s.coursesTimeout;
         _isLoading = false;
         _courses = [];
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Kurslarni yuklashda xatolik: ${e.toString()}';
+        _errorMessage = '${s.coursesLoadError}: ${e.toString()}';
         _isLoading = false;
         _courses = [];
       });
     }
   }
+
   @override
   Widget build(BuildContext context) {
+    // Matnlarni lug'atdan olish va til o'zgarganda rebuild bo'lish
+    final s = AppStrings.of(context);
+    context.watch<LocaleProvider>();
+
     return Scaffold(
       backgroundColor: _pageBackground,
       body: Container(
@@ -119,13 +131,13 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
         child: SafeArea(
           child: Column(
             children: [
-              _buildTopBar(),
+              _buildTopBar(s), // 's' uzatildi
               Expanded(
                 child: RefreshIndicator(
                   color: _brandDark,
                   backgroundColor: Colors.white,
                   onRefresh: _loadCourses,
-                  child: _buildBody(),
+                  child: _buildBody(s), // 's' uzatildi
                 ),
               ),
             ],
@@ -135,7 +147,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildTopBar() {
+  Widget _buildTopBar(AppStrings s) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
       child: Container(
@@ -160,7 +172,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
                 color: _brand.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.menu_book_rounded,
                 color: _brand,
                 size: 28,
@@ -173,8 +185,8 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Kurslar',
-                    style: TextStyle(
+                    s.coursesTitle, // 'Kurslar'
+                    style: const TextStyle(
                       color: _textPrimary,
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
@@ -183,8 +195,8 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Barcha kurslar',
-                    style: TextStyle(
+                    s.coursesSubtitle, // 'Barcha kurslar'
+                    style: const TextStyle(
                       color: _textSecondary,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -202,7 +214,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
               ),
               child: Text(
                 '${_courses.length} ta',
-                style: TextStyle(
+                style: const TextStyle(
                   color: _brandDark,
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
@@ -215,17 +227,17 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(AppStrings s) {
     if (_isLoading) {
       return _buildShimmerLoading();
     }
 
     if (_errorMessage != null) {
-      return _buildErrorView();
+      return _buildErrorView(s); // 's' uzatildi
     }
 
     if (_courses.isEmpty) {
-      return _buildEmptyView();
+      return _buildEmptyView(s); // 's' uzatildi
     }
 
     return LayoutBuilder(
@@ -245,7 +257,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
               mainAxisSpacing: 16,
               mainAxisExtent: 400,
             ),
-            itemBuilder: (context, index) => _buildCourseCard(_courses[index]),
+            itemBuilder: (context, index) => _buildCourseCard(_courses[index], s),
           );
         }
 
@@ -255,7 +267,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
           ),
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           itemCount: _courses.length,
-          itemBuilder: (context, index) => _buildCourseCard(_courses[index]),
+          itemBuilder: (context, index) => _buildCourseCard(_courses[index], s),
         );
       },
     );
@@ -325,7 +337,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildErrorView() {
+  Widget _buildErrorView(AppStrings s) {
     return Center(
       child: Container(
         margin: const EdgeInsets.all(20),
@@ -370,7 +382,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
             const SizedBox(height: 20),
             _buildActionButton(
               onPressed: _loadCourses,
-              label: 'Qayta urinish',
+              label: s.retry, // 'Qayta urinish'
               icon: Icons.refresh_rounded,
             ),
           ],
@@ -379,7 +391,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildEmptyView() {
+  Widget _buildEmptyView(AppStrings s) {
     return Center(
       child: Container(
         margin: const EdgeInsets.all(20),
@@ -405,16 +417,16 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
                 color: _brandSoft,
                 shape: BoxShape.circle,
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.menu_book_rounded,
                 color: _brand,
                 size: 32,
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Kurslar topilmadi',
-              style: TextStyle(
+            Text(
+              s.coursesNotFound, // 'Kurslar topilmadi'
+              style: const TextStyle(
                 color: _textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -459,9 +471,9 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildCourseCard(Course course) {
+  Widget _buildCourseCard(Course course, AppStrings s) {
     final imageUrl = _normalizeImageUrl(course.image);
-    final price = _priceText(course);
+    final price = _priceText(course, s);
     final categoryTitle = (course.category?.title ?? '').trim();
     final subject = course.subject.trim();
     final authorName = (course.author?.firstName ?? '')
@@ -470,237 +482,239 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
     final isPurchased = course.enrollment?.isPaid == true;
 
     return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: () => _openCourse(course),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: _surface,
+        color: Colors.transparent,
+        child: InkWell(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _stroke),
-            boxShadow: [
-              BoxShadow(
-                color: _textPrimary.withOpacity(0.03),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
+            onTap: () => _openCourse(course),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: _surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: _stroke),
+                boxShadow: [
+                  BoxShadow(
+                    color: _textPrimary.withOpacity(0.03),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildCourseImage(
-                url: imageUrl,
-                categoryTitle: categoryTitle,
-                subject: subject,
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      course.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                        color: _textPrimary,
-                        height: 1.3,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (authorName.isNotEmpty)
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: _brandSoft,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              Icons.person_outline,
-                              color: _brand,
-                              size: 14,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              authorName,
-                              style: TextStyle(
-                                color: _textSecondary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    const SizedBox(height: 16),
-                    Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildCourseImage(
+                    url: imageUrl,
+                    categoryTitle: categoryTitle,
+                    subject: subject,
+                    fallbackLabel: s.coursesTitle, // 'Kurs' o'rniga
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _brandSoft,
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: Text(
-                            price,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: _brandDark,
-                              fontSize: 13,
-                            ),
+                        Text(
+                          course.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                            color: _textPrimary,
+                            height: 1.3,
+                            letterSpacing: -0.3,
                           ),
                         ),
-                        const Spacer(),
-                        if (isPurchased)
-                          _buildStatusPill(
-                            "Sotib olingan",
-                            _brandDark,
-                            Icons.check_circle_outline,
-                          )
-                        else
-                          _buildCartAction(),
+                        const SizedBox(height: 12),
+                        if (authorName.isNotEmpty)
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: _brandSoft,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.person_outline,
+                                  color: _brand,
+                                  size: 14,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  authorName,
+                                  style: const TextStyle(
+                                    color: _textSecondary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _brandSoft,
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              child: Text(
+                                price,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: _brandDark,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            const Spacer(),
+                            if (isPurchased)
+                              _buildStatusPill(
+                                s.coursesPurchased, // 'Sotib olingan'
+                                _brandDark,
+                                Icons.check_circle_outline,
+                              )
+                            else
+                              _buildCartAction(),
+                          ],
+                        ),
+                        if (isPurchased) ...[
+                          const SizedBox(height: 16),
+                          _buildOpenButton(course, s), // 's' uzatildi
+                        ],
                       ],
                     ),
-                    if (isPurchased) ...[
-                      const SizedBox(height: 16),
-                      _buildOpenButton(course),
-                    ],
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        )));
+            )));
   }
 
   Widget _buildCourseImage({
     required String url,
     required String categoryTitle,
     required String subject,
+    required String fallbackLabel,
   }) {
     final imageBadge = subject.isNotEmpty
         ? subject
-        : (categoryTitle.isNotEmpty ? categoryTitle : 'Kurs');
+        : (categoryTitle.isNotEmpty ? categoryTitle : fallbackLabel);
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      child: AspectRatio(
-        aspectRatio: 16 / 9,
-        child: Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                _brandSoft,
-                _brandLight,
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  _brandSoft,
+                  _brandLight,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
             ),
-          ),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              if (url.isNotEmpty)
-                CachedNetworkImage(
-                  imageUrl: url,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => Center(
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: _brand,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (url.isNotEmpty)
+                  CachedNetworkImage(
+                    imageUrl: url,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => const Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: _brand,
+                        ),
                       ),
                     ),
-                  ),
-                  errorWidget: (_, __, ___) => Icon(
+                    errorWidget: (_, __, ___) => Icon(
+                      Icons.menu_book_rounded,
+                      color: _brand.withOpacity(0.5),
+                      size: 40,
+                    ),
+                  )
+                else
+                  Icon(
                     Icons.menu_book_rounded,
                     color: _brand.withOpacity(0.5),
                     size: 40,
                   ),
-                )
-              else
-                Icon(
-                  Icons.menu_book_rounded,
-                  color: _brand.withOpacity(0.5),
-                  size: 40,
-                ),
-              Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.95),
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.95),
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      imageBadge.toLowerCase(),
+                      style: const TextStyle(
+                        color: _brand,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.3,
                       ),
-                    ],
-                  ),
-                  child: Text(
-                    imageBadge.toLowerCase(),
-                    style: TextStyle(
-                      color: _brand,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.3,
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ));
+        ));
   }
 
-  Widget _buildOpenButton(Course course) {
+  Widget _buildOpenButton(Course course, AppStrings s) {
     return Material(
-      color: _brand,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
+        color: _brand,
         borderRadius: BorderRadius.circular(14),
-        onTap: () => _openCourse(course),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Kursni boshlash',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                  letterSpacing: 0.3,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _openCourse(course),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  s.coursesStart, // 'Kursni boshlash'
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    letterSpacing: 0.3,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ));
+        ));
   }
 
   Widget _buildCartAction() {
@@ -775,8 +789,8 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
 
   String _normalizeImageUrl(String url) => UrlHelper.normalizeMediaUrl(url);
 
-  String _priceText(Course course) {
-    if (!course.isPaid) return 'Bepul';
+  String _priceText(Course course, AppStrings s) {
+    if (!course.isPaid) return s.coursesFree; // 'Bepul'
     final price = course.price.isNotEmpty ? course.price : '0';
     final currency = course.currency.isNotEmpty ? course.currency : 'UZS';
     return '$price $currency'.trim();

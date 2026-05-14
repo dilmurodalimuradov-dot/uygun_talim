@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/l10n/app_strings.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../../../courses/presentation/pages/courses_page.dart';
 import '../../../tests/presentation/pages/exams_page.dart';
@@ -19,6 +20,8 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
+
     return Scaffold(
       extendBody: true,
       body: _pages[_currentIndex],
@@ -28,10 +31,9 @@ class _HomePageState extends State<HomePage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: Colors.black.withValues(alpha: 0.12),
-              width: 1,
+            color: Colors.black.withValues(alpha: 0.12),
+            width: 1,
           ),
-
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
@@ -49,21 +51,21 @@ class _HomePageState extends State<HomePage> {
               type: BottomNavigationBarType.fixed,
               currentIndex: _currentIndex,
               onTap: (index) => setState(() => _currentIndex = index),
-              items: const [
+              items: [
                 BottomNavigationBarItem(
-                  icon: Icon(Icons.menu_book),
-                  label: 'Kurslar',
-                  tooltip: 'Kurslar',
+                  icon: const Icon(Icons.menu_book),
+                  label: s.navCourses,
+                  tooltip: s.navCourses,
                 ),
                 BottomNavigationBarItem(
-                  icon: Icon(Icons.quiz),
-                  label: 'Imtihonlar',
-                  tooltip: 'Imtihonlar',
+                  icon: const Icon(Icons.quiz),
+                  label: s.navExams,
+                  tooltip: s.navExams,
                 ),
                 BottomNavigationBarItem(
-                  icon: Icon(Icons.person),
-                  label: 'Profil',
-                  tooltip: 'Profil',
+                  icon: const Icon(Icons.person),
+                  label: s.navProfile,
+                  tooltip: s.navProfile,
                 ),
               ],
             ),

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // Provider qo'shildi
+import '../../../../core/l10n/app_strings.dart';
+import '../../../../core/providers/locale_provider.dart'; // LocaleProvider qo'shildi
 import '../../../../core/utils/url_helper.dart';
 import '../../../../shared/legacy/course_service_bridge.dart';
 import '../../../../shared/legacy/payment_service_bridge.dart';
@@ -70,7 +73,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
       final token = await _tokenStorageService.readAccessToken();
       if (token == null || token.isEmpty) {
         setState(() {
-          _errorMessage = 'Access token topilmadi.';
+          _errorMessage = AppStrings.forCode(context.read<LocaleProvider>().locale.languageCode).coursesTokenNotFound;
         });
         return;
       }
@@ -83,7 +86,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Kurs maʼlumotlarini yuklashda xatolik yuz berdi.';
+        _errorMessage = AppStrings.of(context).coursesLoadingError;
       });
     } finally {
       if (mounted) {
@@ -94,7 +97,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
     }
   }
 
-  Future<void> _startCourse(Course course) async {
+  Future<void> _startCourse(Course course, AppStrings s) async {
     if (_isStarting) return;
     setState(() {
       _isStarting = true;
@@ -103,12 +106,12 @@ class _CourseDetailPageState extends State<CourseDetailPage>
     try {
       final token = await _tokenStorageService.readAccessToken();
       if (token == null || token.isEmpty) {
-        throw Exception('Access token topilmadi.');
+        throw Exception(s.coursesTokenNotFound);
       }
       await _courseService.startCourse(token, widget.course.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kurs boshlandi')),
+        SnackBar(content: Text(s.coursesCourseStarted)),
       );
       await _loadDetail();
       if (!mounted) return;
@@ -116,7 +119,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
         MaterialPageRoute(
           builder: (_) => LessonPage(
             courseId: course.id,
-            title: course.title.isNotEmpty ? course.title : 'Darslar',
+            title: course.title.isNotEmpty ? course.title : s.lessonTitle,
           ),
         ),
       );
@@ -134,7 +137,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
     }
   }
 
-  Future<void> _buyCourse(Course course) async {
+  Future<void> _buyCourse(Course course, AppStrings s) async {
     if (_isPaying) return;
     setState(() {
       _isPaying = true;
@@ -143,7 +146,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
     try {
       final token = await _tokenStorageService.readAccessToken();
       if (token == null || token.isEmpty) {
-        throw Exception('Access token topilmadi.');
+        throw Exception(s.coursesTokenNotFound);
       }
 
       final paymentUrl = await _paymentService.createPaymentAndGetUrl(
@@ -179,28 +182,21 @@ class _CourseDetailPageState extends State<CourseDetailPage>
     }
   }
 
-  Future<void> _handlePrimaryAction(Course course) async {
-    if (_isStarting || _isPaying) return;
-    final needsPayment = course.isPaid && (course.enrollment?.isPaid != true);
-    if (needsPayment) {
-      await _buyCourse(course);
-      return;
-    }
-    await _startCourse(course);
-  }
-
   @override
   Widget build(BuildContext context) {
+    // AppStrings instansini olamiz va Providerni kuzatamiz
+    final s = AppStrings.of(context);
     final course = _course;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5F7),
       appBar: AppBar(
         backgroundColor: const Color(0xFFF2F5F7),
         elevation: 0,
         scrolledUnderElevation: 0,
-        title: const Text(
-          'Kurs tafsiloti',
-          style: TextStyle(
+        title: Text(
+          s.courseDetailTitle,
+          style: const TextStyle(
             color: Color(0xFF10233E),
             fontWeight: FontWeight.w700,
           ),
@@ -209,37 +205,37 @@ class _CourseDetailPageState extends State<CourseDetailPage>
       body: SafeArea(
         child: _isLoading && course == null
             ? const Center(
-                child: SizedBox(
-                  width: 26,
-                  height: 26,
-                  child: CircularProgressIndicator(strokeWidth: 2.6),
-                ),
-              )
+          child: SizedBox(
+            width: 26,
+            height: 26,
+            child: CircularProgressIndicator(strokeWidth: 2.6),
+          ),
+        )
             : RefreshIndicator(
-                onRefresh: _reloadAll,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                  children: [
-                    if (_errorMessage != null) ...[
-                      _buildInfoBanner(_errorMessage!),
-                      const SizedBox(height: 16),
-                    ],
-                    if (course != null) ...[
-                      _buildDetailCard(course),
-                      const SizedBox(height: 14),
-                      _buildMetaCard(course),
-                    ],
-                  ],
-                ),
-              ),
+          onRefresh: _reloadAll,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            children: [
+              if (_errorMessage != null) ...[
+                _buildInfoBanner(_errorMessage!),
+                const SizedBox(height: 16),
+              ],
+              if (course != null) ...[
+                _buildDetailCard(course, s),
+                const SizedBox(height: 14),
+                _buildMetaCard(course, s),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildDetailCard(Course course) {
+  Widget _buildDetailCard(Course course, AppStrings s) {
     final imageUrl = _normalizeImageUrl(course.image);
-    final status = _statusText(course);
+    final status = _statusText(course, s);
     final statusColor = _statusColor(course);
 
     return Container(
@@ -253,7 +249,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.16),
+            color: Colors.black.withOpacity(0.16),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
@@ -289,7 +285,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
                   ),
                 if (course.subject.isNotEmpty)
                   Text(
-                    'Fan: ${course.subject}',
+                    '${s.coursesSubject}: ${course.subject}',
                     style: const TextStyle(
                       color: Color(0xFFD1ECE8),
                       fontSize: 12,
@@ -302,7 +298,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
                   child: _buildStatusChip(
                     text: status,
                     textColor: statusColor,
-                    backgroundColor: Colors.white.withValues(alpha: 0.9),
+                    backgroundColor: Colors.white.withOpacity(0.9),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -323,8 +319,8 @@ class _CourseDetailPageState extends State<CourseDetailPage>
     );
   }
 
-  Widget _buildMetaCard(Course course) {
-    final price = _priceText(course);
+  Widget _buildMetaCard(Course course, AppStrings s) {
+    final price = _priceText(course, s);
     final showBuyButton = course.isPaid && (course.enrollment?.isPaid != true);
     final isPrimaryLoading = _isStarting || _isPaying;
     return Container(
@@ -337,7 +333,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
               Expanded(
                 child: _buildMetricItem(
                   icon: Icons.payments_outlined,
-                  label: 'Narx',
+                  label: s.coursesPrice,
                   value: price,
                 ),
               ),
@@ -345,7 +341,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
               Expanded(
                 child: _buildMetricItem(
                   icon: Icons.insights_outlined,
-                  label: 'Progress',
+                  label: s.coursesProgress,
                   value: '${course.progress}%',
                 ),
               ),
@@ -357,11 +353,11 @@ class _CourseDetailPageState extends State<CourseDetailPage>
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: isPrimaryLoading ? null : () => _startCourse(course),
+                    onPressed: isPrimaryLoading ? null : () => _startCourse(course, s),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
                       side: BorderSide(
-                        color: AppColors.primary.withValues(alpha: 0.45),
+                        color: AppColors.primary.withOpacity(0.45),
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -370,20 +366,20 @@ class _CourseDetailPageState extends State<CourseDetailPage>
                     ),
                     child: _isStarting
                         ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2.4),
-                          )
-                        : const Text(
-                            'Kursni boshlash',
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.4),
+                    )
+                        : Text(
+                      s.coursesStartNow,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: isPrimaryLoading ? null : () => _buyCourse(course),
+                    onPressed: isPrimaryLoading ? null : () => _buyCourse(course, s),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
@@ -395,17 +391,17 @@ class _CourseDetailPageState extends State<CourseDetailPage>
                     ),
                     child: _isPaying
                         ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.4,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Sotib olish',
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        color: Colors.white,
+                      ),
+                    )
+                        : Text(
+                      s.coursesBuy,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ),
               ],
@@ -414,7 +410,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: isPrimaryLoading ? null : () => _startCourse(course),
+                onPressed: isPrimaryLoading ? null : () => _startCourse(course, s),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -426,17 +422,17 @@ class _CourseDetailPageState extends State<CourseDetailPage>
                 ),
                 child: isPrimaryLoading
                     ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.4,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Kursni boshlash',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.4,
+                    color: Colors.white,
+                  ),
+                )
+                    : Text(
+                  s.coursesStartNow,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
             ),
         ],
@@ -483,10 +479,10 @@ class _CourseDetailPageState extends State<CourseDetailPage>
   }
 
   Widget _buildCourseImage(
-    String url, {
-    double width = 96,
-    double radius = 14,
-  }) {
+      String url, {
+        double width = 96,
+        double radius = 14,
+      }) {
     return SizedBox(
       width: width,
       child: ClipRRect(
@@ -497,8 +493,8 @@ class _CourseDetailPageState extends State<CourseDetailPage>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.white.withValues(alpha: 0.2),
-                  Colors.white.withValues(alpha: 0.12),
+                  Colors.white.withOpacity(0.2),
+                  Colors.white.withOpacity(0.12),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -507,15 +503,15 @@ class _CourseDetailPageState extends State<CourseDetailPage>
             child: url.isEmpty
                 ? const Icon(Icons.menu_book_rounded, color: Colors.white)
                 : Image.network(
-                    url,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) {
-                      return const Icon(
-                        Icons.menu_book_rounded,
-                        color: Colors.white,
-                      );
-                    },
-                  ),
+              url,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) {
+                return const Icon(
+                  Icons.menu_book_rounded,
+                  color: Colors.white,
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -581,7 +577,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
       borderRadius: BorderRadius.circular(18),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.07),
+          color: Colors.black.withOpacity(0.07),
           blurRadius: 18,
           offset: const Offset(0, 10),
         ),
@@ -591,17 +587,17 @@ class _CourseDetailPageState extends State<CourseDetailPage>
 
   String _normalizeImageUrl(String url) => UrlHelper.normalizeMediaUrl(url);
 
-  String _priceText(Course course) {
-    if (!course.isPaid) return 'Bepul';
+  String _priceText(Course course, AppStrings s) {
+    if (!course.isPaid) return s.coursesFree;
     final price = course.price.isNotEmpty ? course.price : '0';
     final currency = course.currency.isNotEmpty ? course.currency : '';
     return '$price $currency'.trim();
   }
 
-  String _statusText(Course course) {
+  String _statusText(Course course, AppStrings s) {
     final enrollment = course.enrollment;
-    if (enrollment == null) return 'Sotib olinmagan';
-    return enrollment.isPaid ? "To'langan" : "To'lanmagan";
+    if (enrollment == null) return s.coursesNotPurchased;
+    return enrollment.isPaid ? s.coursesPaid : s.coursesUnpaid;
   }
 
   Color _statusColor(Course course) {
@@ -609,5 +605,4 @@ class _CourseDetailPageState extends State<CourseDetailPage>
     if (enrollment == null) return const Color(0xFF9A6A00);
     return enrollment.isPaid ? const Color(0xFF0A7AC2) : const Color(0xFF9A6A00);
   }
-
 }

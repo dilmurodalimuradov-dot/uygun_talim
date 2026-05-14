@@ -3,6 +3,9 @@ import '../../core/utils/usecase.dart';
 import '../../features/tests/domain/entities/test_item.dart' as domain;
 import '../../features/tests/domain/usecases/test_usecases.dart';
 
+/// Testlar uchun yengil ko'prik sinf.
+/// Token [ApiClient] interceptori orqali avtomatik qo'shiladi —
+/// sahifalar tokenni qo'lda uzatmasligi kerak.
 class TestItem {
   TestItem({
     required this.id,
@@ -19,16 +22,19 @@ class TestItem {
   final int questionsCount;
 
   factory TestItem.fromDomain(domain.TestItem t) => TestItem(
-        id: t.id,
-        title: t.title,
-        description: t.description,
-        duration: t.duration,
-        questionsCount: t.questionsCount,
-      );
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    duration: t.duration,
+    questionsCount: t.questionsCount,
+  );
 }
 
 class TestService {
-  Future<List<TestItem>> fetchTests(String token) async {
+  /// Barcha testlarni yuklaydi.
+  /// Token [ApiClient] → [ServiceLocator.apiClient.tokenProvider] orqali
+  /// avtomatik qo'shiladi. Sahifalar tokenni qo'lda uzatmaydi.
+  Future<List<TestItem>> fetchTests() async {
     final result = await ServiceLocator.getTests(const NoParams());
     return result.when(
       success: (list) => list.map(TestItem.fromDomain).toList(),
@@ -36,7 +42,8 @@ class TestService {
     );
   }
 
-  Future<Map<String, dynamic>> fetchTest(String token, String id) async {
+  /// Bitta test tafsilotini yuklaydi.
+  Future<Map<String, dynamic>> fetchTest(String id) async {
     final result = await ServiceLocator.getTestDetail(id);
     return result.when(
       success: (data) => data,
@@ -44,11 +51,11 @@ class TestService {
     );
   }
 
+  /// Test javoblarini yuboradi.
   Future<Map<String, dynamic>> submitTest(
-    String token,
-    String id,
-    Map<String, dynamic> payload,
-  ) async {
+      String id,
+      Map<String, dynamic> payload,
+      ) async {
     final result = await ServiceLocator.submitTest(
       SubmitTestParams(id: id, payload: payload),
     );

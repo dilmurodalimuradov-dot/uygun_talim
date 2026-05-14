@@ -1,3 +1,4 @@
+// lib/features/tests/data/repositories/test_repository_impl.dart
 import '../../../../core/error/exceptions.dart' as app_exc;
 import '../../../../core/error/failures.dart';
 import '../../../../core/utils/result.dart';
@@ -26,8 +27,10 @@ class TestRepositoryImpl implements TestRepository {
   }
 
   @override
-  Future<Result<List<TestItem>>> getTests() =>
-      _guard(() => _remote.fetchTests().then((v) => v.whereType<TestItem>().toList()));
+  Future<Result<List<TestItem>>> getTests() => _guard(() async {
+    final models = await _remote.fetchTests();
+    return models.map((model) => model.toEntity()).toList();
+  });
 
   @override
   Future<Result<Map<String, dynamic>>> getTestDetail(String id) =>
@@ -35,8 +38,8 @@ class TestRepositoryImpl implements TestRepository {
 
   @override
   Future<Result<Map<String, dynamic>>> submitTest(
-    String id,
-    Map<String, dynamic> payload,
-  ) =>
+      String id,
+      Map<String, dynamic> payload,
+      ) =>
       _guard(() => _remote.submitTest(id, payload));
 }

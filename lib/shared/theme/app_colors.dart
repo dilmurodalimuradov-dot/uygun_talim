@@ -10,7 +10,6 @@ class AppColors {
   static const Color brandDark = Color(0xFF3D8B67);
   static const Color brandSoft = Color(0xFFE8F3EE);
   static const Color brandLight = Color(0xFFD1E9DD);
-
   // Surface
   static const Color background = Color(0xFFF3F5F4);
   static const Color pageBackground = Color(0xFFF5F7FA);

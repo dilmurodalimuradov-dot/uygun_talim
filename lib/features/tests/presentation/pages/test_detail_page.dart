@@ -1,11 +1,12 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import '../../../../shared/legacy/test_service_bridge.dart';
-import '../../../../shared/legacy/token_storage_bridge.dart';
-import '../../../../shared/widgets/json_detail_page.dart';
 import '../../../../shared/theme/app_colors.dart';
+import '../../../../shared/widgets/json_detail_page.dart';
 import '../../../../shared/widgets/json_input_dialog.dart';
+import '../../domain/entities/test_item.dart';
+import '../../domain/usecases/test_usecases.dart';
+import '../../../../core/di/service_locator.dart';
+import '../../../../core/error/failures.dart';
 
 class TestDetailPage extends StatefulWidget {
   const TestDetailPage({super.key, required this.test});
@@ -17,9 +18,6 @@ class TestDetailPage extends StatefulWidget {
 }
 
 class _TestDetailPageState extends State<TestDetailPage> {
-  final TestService _service = TestService();
-  final TokenStorageService _tokenStorage = TokenStorageService();
-
   bool _isLoading = false;
   String? _errorMessage;
   Map<String, dynamic>? _detail;
@@ -36,60 +34,68 @@ class _TestDetailPageState extends State<TestDetailPage> {
       _errorMessage = null;
     });
 
-    try {
-      final token = await _tokenStorage.readAccessToken();
-      if (token == null || token.isEmpty) {
+    final result = await ServiceLocator.getTestDetail.call(widget.test.id);
+
+    if (!mounted) return;
+
+    // TUZATILDI: fold metodining to'g'ri ishlatilishi
+    result.fold(
+      onFailure: (failure) {
         setState(() {
-          _errorMessage = 'Access token topilmadi.';
+          _errorMessage = _getErrorMessage(failure);
+          _isLoading = false;
         });
-        return;
-      }
-      final detail = await _service.fetchTest(token, widget.test.id);
-      if (!mounted) return;
-      setState(() => _detail = detail);
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = error.toString().replaceFirst('Exception: ', '');
-      });
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+      },
+      onSuccess: (detail) {
+        setState(() {
+          _detail = detail;
+          _errorMessage = null;
+          _isLoading = false;
+        });
+      },
+    );
+  }
+
+  String _getErrorMessage(dynamic failure) {
+    if (failure is ServerFailure) return 'Server xatosi: ${failure.message}';
+    if (failure is NetworkFailure) return 'Internet aloqasi yo\'q';
+    if (failure is TimeoutFailure) return 'So\'rov vaqti tugadi';
+    if (failure is UnauthorizedFailure) return 'Ruxsat yo\'q';
+    if (failure is CacheFailure) return 'Kesh xatosi';
+    return 'Xatolik yuz berdi: ${failure.toString()}';
   }
 
   Future<void> _submitTest() async {
-    final token = await _tokenStorage.readAccessToken();
-    if (!mounted) return;
-    if (token == null || token.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Access token topilmadi.')),
-      );
-      return;
-    }
-
     final payload = await showJsonInputDialog(
       context: context,
       title: 'Testni yuborish (JSON)',
     );
     if (payload == null) return;
 
-    try {
-      final response = await _service.submitTest(token, widget.test.id, payload);
-      if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => JsonDetailPage(
-            title: 'Test javobi',
-            data: response,
+    final result = await ServiceLocator.submitTest.call(
+      SubmitTestParams(id: widget.test.id, payload: payload),
+    );
+
+    if (!mounted) return;
+
+    // TUZATILDI: fold metodining to'g'ri ishlatilishi
+    result.fold(
+      onFailure: (failure) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_getErrorMessage(failure))),
+        );
+      },
+      onSuccess: (response) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => JsonDetailPage(
+              title: 'Test javobi',
+              data: response,
+            ),
           ),
-        ),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
-      );
-    }
+        );
+      },
+    );
   }
 
   @override
@@ -134,30 +140,30 @@ class _TestDetailPageState extends State<TestDetailPage> {
               else if (_errorMessage != null)
                 _buildInfoBanner(_errorMessage!)
               else if (_detail == null)
-                _buildInfoBanner('Maʼlumot topilmadi.')
-              else
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.96),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 12,
-                        offset: const Offset(0, 8),
+                  _buildInfoBanner('Maʼlumot topilmadi.')
+                else
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.96),  // TUZATILDI: withOpacity -> withValues
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(20),
+                          blurRadius: 12,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: SelectableText(
+                      formatted,
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        height: 1.35,
+                        color: Colors.black87,
                       ),
-                    ],
-                  ),
-                  child: SelectableText(
-                    formatted,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      height: 1.35,
-                      color: Colors.black87,
                     ),
                   ),
-                ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: _submitTest,
@@ -175,7 +181,7 @@ class _TestDetailPageState extends State<TestDetailPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.95),
+        color: Colors.white.withValues(alpha: 0.95),  // TUZATILDI: withOpacity -> withValues
         borderRadius: BorderRadius.circular(14),
       ),
       child: Text(

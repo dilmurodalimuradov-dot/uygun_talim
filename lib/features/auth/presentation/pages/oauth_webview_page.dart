@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import '/core/l10n/app_strings.dart';
 
 class OAuthWebViewPage extends StatefulWidget {
   const OAuthWebViewPage({super.key, required this.initialUri});
@@ -42,7 +43,7 @@ class _OAuthWebViewPageState extends State<OAuthWebViewPage> {
             if (!mounted) return;
             setState(() {
               _isLoading = false;
-              _errorMessage = 'Sahifani ochishda xatolik yuz berdi.';
+              _errorMessage = AppStrings.of(context).webviewPageError;
             });
           },
         ),
@@ -53,7 +54,9 @@ class _OAuthWebViewPageState extends State<OAuthWebViewPage> {
   bool _isRedirectUri(Uri uri) {
     final path = uri.path.toLowerCase();
     final isRedirectPath =
-        path == '/redirect' || path == '/rederict' || path.startsWith('/redirect/');
+        path == '/redirect' ||
+            path == '/rederict' ||
+            path.startsWith('/redirect/');
 
     if (uri.scheme == 'uyguntalim' && uri.host == 'redirect') {
       return true;
@@ -77,9 +80,11 @@ class _OAuthWebViewPageState extends State<OAuthWebViewPage> {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kirish'),
+        title: Text(s.webviewTitle),
       ),
       body: Stack(
         children: [
@@ -98,8 +103,10 @@ class _OAuthWebViewPageState extends State<OAuthWebViewPage> {
               child: Container(
                 width: double.infinity,
                 margin: const EdgeInsets.all(12),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF2F2),
                   borderRadius: BorderRadius.circular(12),

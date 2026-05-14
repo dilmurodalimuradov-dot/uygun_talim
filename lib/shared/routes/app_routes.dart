@@ -7,7 +7,6 @@ abstract class AppRoutes {
   static const String loginPage = '/login_page';
   static const String homePage = '/home_page';
   static const String profilePage = '/profile';
-  static const String myApplications = '/myApplications';
 
   static const String oauthWebView = '/oauth_webview';
   static const String courses = '/courses';
