@@ -54,11 +54,16 @@ class ApiConstants {
   // --- Modules / Lessons ---
   static const String modulesPath = '/modules/';
   static const String lessonsPath = '/lessons/';
+  static const String lessonProgressPath = '/lesson-progress/';
 
   // --- Tests ---
   static const String testsPath = '/tests/';
   static String testDetailPath(String id) => '/tests/$id/';
+  static String testStartPath(String id) => '/tests/$id/start/';
   static String testSubmitPath(String id) => '/tests/$id/submit/';
+  // Lesson / Module bo'yicha filter
+  static String testsByLessonPath(String lessonId) => '/tests/?lesson=$lessonId';
+  static String testsByModulePath(String moduleId) => '/tests/?module=$moduleId';
 
   // --- Payments ---
   static const String myPaymentsPath = '/payments/my/';

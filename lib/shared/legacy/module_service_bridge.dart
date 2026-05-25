@@ -9,18 +9,24 @@ class Module {
     required this.title,
     required this.order,
     required this.lessonsCount,
+    this.isOpened = true,
+    this.isCompleted = false,
   });
 
   final String id;
   final String title;
   final int order;
   final int lessonsCount;
+  final bool isOpened;
+  final bool isCompleted;
 
   factory Module.fromDomain(domain.Module m) => Module(
         id: m.id,
         title: m.title,
         order: m.order,
         lessonsCount: m.lessonsCount,
+        isOpened: m.isOpened,
+        isCompleted: m.isCompleted,
       );
 }
 

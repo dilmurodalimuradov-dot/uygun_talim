@@ -29,7 +29,7 @@ class AppStrings {
 
   // ---- Bottom Nav ----
   String get navCourses => 'Kurslar';
-  String get navExams => 'Imtihonlar';
+  String get navCertificates => 'Sertifikatlar';
   String get navProfile => 'Profil';
 
   // ---- Login ----
@@ -206,7 +206,7 @@ class _RuStrings extends AppStrings {
   @override
   String get navCourses => 'Курсы';
   @override
-  String get navExams => 'Экзамены';
+  String get navCertificates => 'Сертификаты';
   @override
   String get navProfile => 'Профиль';
 
@@ -506,7 +506,7 @@ class _EnStrings extends AppStrings {
   @override
   String get navCourses => 'Courses';
   @override
-  String get navExams => 'Exams';
+  String get navCertificates => 'Certificates';
   @override
   String get navProfile => 'Profile';
 

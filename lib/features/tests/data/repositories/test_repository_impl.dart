@@ -29,12 +29,30 @@ class TestRepositoryImpl implements TestRepository {
   @override
   Future<Result<List<TestItem>>> getTests() => _guard(() async {
     final models = await _remote.fetchTests();
-    return models.map((model) => model.toEntity()).toList();
+    return models.map((m) => m.toEntity()).toList();
   });
+
+  @override
+  Future<Result<List<TestItem>>> getTestsByLesson(String lessonId) =>
+      _guard(() async {
+        final models = await _remote.fetchTestsByLesson(lessonId);
+        return models.map((m) => m.toEntity()).toList();
+      });
+
+  @override
+  Future<Result<List<TestItem>>> getTestsByModule(String moduleId) =>
+      _guard(() async {
+        final models = await _remote.fetchTestsByModule(moduleId);
+        return models.map((m) => m.toEntity()).toList();
+      });
 
   @override
   Future<Result<Map<String, dynamic>>> getTestDetail(String id) =>
       _guard(() => _remote.fetchTestDetail(id));
+
+  @override
+  Future<Result<Map<String, dynamic>>> startTest(String id) =>
+      _guard(() => _remote.startTest(id));
 
   @override
   Future<Result<Map<String, dynamic>>> submitTest(

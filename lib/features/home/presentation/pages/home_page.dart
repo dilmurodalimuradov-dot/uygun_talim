@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/l10n/app_strings.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../../../courses/presentation/pages/courses_page.dart';
-import '../../../tests/presentation/pages/exams_page.dart';
+import '../../../certificates/presentation/pages/certificates_page.dart';
 import '../../../../shared/theme/app_colors.dart';
 
 class HomePage extends StatefulWidget {
@@ -16,7 +16,7 @@ class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
   static const Color _navColor = AppColors.primary;
 
-  final List<Widget> _pages = const [CoursesPage(), ExamsPage(), ProfilePage()];
+  final List<Widget> _pages = const [CoursesPage(), CertificatesPage(), ProfilePage()];
 
   @override
   Widget build(BuildContext context) {
@@ -58,9 +58,9 @@ class _HomePageState extends State<HomePage> {
                   tooltip: s.navCourses,
                 ),
                 BottomNavigationBarItem(
-                  icon: const Icon(Icons.quiz),
-                  label: s.navExams,
-                  tooltip: s.navExams,
+                  icon: const Icon(Icons.workspace_premium_rounded),
+                  label: s.navCertificates,
+                  tooltip: s.navCertificates,
                 ),
                 BottomNavigationBarItem(
                   icon: const Icon(Icons.person),

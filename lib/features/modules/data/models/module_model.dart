@@ -7,6 +7,8 @@ class ModuleModel extends Module {
     required super.title,
     required super.order,
     required super.lessonsCount,
+    super.isOpened,
+    super.isCompleted,
   });
 
   factory ModuleModel.fromJson(Map<String, dynamic> json) {
@@ -19,6 +21,8 @@ class ModuleModel extends Module {
       lessonsCount: JsonParser.parseInt(
         json['lessons_count'] ?? json['lesson_count'] ?? json['lessons'],
       ),
+      isOpened: json['is_opened'] != false,
+      isCompleted: json['is_completed'] == true,
     );
   }
 }

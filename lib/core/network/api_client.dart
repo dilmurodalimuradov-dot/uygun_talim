@@ -238,9 +238,15 @@ class ApiClient {
 
     final message = _extractError(response);
 
-    if (statusCode == 401 || statusCode == 403) {
+    if (statusCode == 401) {
       onUnauthorized?.call();
       throw app_exc.UnauthorizedException(message);
+    }
+
+    if (statusCode == 403) {
+      // 403 = ruxsat yo'q (dars tugallanmagan, to'lov qilinmagan va h.k.)
+      // Login sahifasiga yo'naltirmaslik kerak
+      throw app_exc.ServerException(message, statusCode: statusCode);
     }
 
     throw app_exc.ServerException(message, statusCode: statusCode);

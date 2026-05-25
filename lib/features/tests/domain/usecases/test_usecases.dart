@@ -1,4 +1,4 @@
-// lib/features/tests/domain/usecases/test_usecases.dart (to'liq)
+// lib/features/tests/domain/usecases/test_usecases.dart
 import '../../../../core/utils/result.dart';
 import '../../../../core/utils/usecase.dart';
 import '../entities/test_item.dart';
@@ -13,6 +13,24 @@ class GetTests implements UseCase<List<TestItem>, NoParams> {
       _repository.getTests();
 }
 
+class GetTestsByLesson implements UseCase<List<TestItem>, String> {
+  GetTestsByLesson(this._repository);
+  final TestRepository _repository;
+
+  @override
+  Future<Result<List<TestItem>>> call(String lessonId) =>
+      _repository.getTestsByLesson(lessonId);
+}
+
+class GetTestsByModule implements UseCase<List<TestItem>, String> {
+  GetTestsByModule(this._repository);
+  final TestRepository _repository;
+
+  @override
+  Future<Result<List<TestItem>>> call(String moduleId) =>
+      _repository.getTestsByModule(moduleId);
+}
+
 class GetTestDetail implements UseCase<Map<String, dynamic>, String> {
   GetTestDetail(this._repository);
   final TestRepository _repository;
@@ -20,6 +38,15 @@ class GetTestDetail implements UseCase<Map<String, dynamic>, String> {
   @override
   Future<Result<Map<String, dynamic>>> call(String id) =>
       _repository.getTestDetail(id);
+}
+
+class StartTest implements UseCase<Map<String, dynamic>, String> {
+  StartTest(this._repository);
+  final TestRepository _repository;
+
+  @override
+  Future<Result<Map<String, dynamic>>> call(String id) =>
+      _repository.startTest(id);
 }
 
 class SubmitTestParams {

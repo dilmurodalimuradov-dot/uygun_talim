@@ -9,6 +9,8 @@ class TestItemModel extends TestItem {
     required super.description,
     required super.duration,
     required super.questionsCount,
+    super.lessonId,
+    super.moduleId,
   });
 
   factory TestItemModel.fromJson(Map<String, dynamic> json) {
@@ -24,10 +26,15 @@ class TestItemModel extends TestItem {
 
     final rawDesc = json['description'] ?? json['desc'] ?? json['about'];
     final rawDuration = json['duration'] ?? json['time'] ?? json['duration_minutes'];
+    // API list endpointida 'questions' array, detail da 'questions_count' kelishi mumkin
     final rawCount = json['questions_count'] ??
         json['questionsCount'] ??
         json['question_count'] ??
-        json['total_questions'];
+        json['total_questions'] ??
+        (json['questions'] is List ? (json['questions'] as List).length : null);
+
+    final rawLessonId = json['lesson'] ?? json['lesson_id'] ?? json['lesson_uuid'];
+    final rawModuleId = json['module'] ?? json['module_id'] ?? json['module_uuid'];
 
     return TestItemModel(
       id: _parseId(rawId),
@@ -35,6 +42,8 @@ class TestItemModel extends TestItem {
       description: _parseString(rawDesc, defaultValue: ''),
       duration: _parseInt(rawDuration, defaultValue: 0),
       questionsCount: _parseInt(rawCount, defaultValue: 0),
+      lessonId: rawLessonId != null ? _parseId(rawLessonId) : null,
+      moduleId: rawModuleId != null ? _parseId(rawModuleId) : null,
     );
   }
 
@@ -69,6 +78,8 @@ class TestItemModel extends TestItem {
       'description': description,
       'duration': duration,
       'questions_count': questionsCount,
+      if (lessonId != null) 'lesson_id': lessonId,
+      if (moduleId != null) 'module_id': moduleId,
     };
   }
 
@@ -79,6 +90,8 @@ class TestItemModel extends TestItem {
       description: description,
       duration: duration,
       questionsCount: questionsCount,
+      lessonId: lessonId,
+      moduleId: moduleId,
     );
   }
 }

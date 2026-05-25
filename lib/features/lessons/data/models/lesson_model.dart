@@ -9,9 +9,20 @@ class LessonModel extends Lesson {
     required super.order,
     required super.description,
     required super.videoSource,
+    super.testId,
+    required super.hasTest,
+    required super.isFullyWatched,
+    required super.isCompleted,
+    super.testPassed,
   });
 
   factory LessonModel.fromJson(Map<String, dynamic> json) {
+    final progress = json['progress'] as Map<String, dynamic>?;
+    final isFullyWatched = progress?['is_fully_watched'] == true;
+    final isCompleted = progress?['is_completed'] == true;
+    final status = json['status'] as Map<String, dynamic>?;
+    final testPassed = status?['passed'] == true;
+
     return LessonModel(
       id: JsonParser.parseString(json['id']),
       title: JsonParser.parseString(json['title'] ?? json['name']),
@@ -21,8 +32,12 @@ class LessonModel extends Lesson {
       description: JsonParser.parseString(
         json['description'] ?? json['content'],
       ),
-      videoSource:
-          UrlHelper.normalizeMediaUrl(_extractVideoSource(json)),
+      videoSource: UrlHelper.normalizeMediaUrl(_extractVideoSource(json)),
+      testId: json['test_id']?.toString(),
+      hasTest: json['has_test'] == true || json['test_id'] != null,
+      isFullyWatched: isFullyWatched,
+      isCompleted: isCompleted,
+      testPassed: testPassed,
     );
   }
 
@@ -43,7 +58,6 @@ class LessonModel extends Lesson {
       if (extracted.isNotEmpty) return extracted;
     }
 
-    // Oxirgi chora — qiymatlar ichidan video URL'ga o'xshash narsani izlash.
     for (final value in data.values) {
       final extracted = _extractString(value);
       if (extracted.isNotEmpty &&

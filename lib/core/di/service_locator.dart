@@ -79,7 +79,10 @@ class ServiceLocator {
   static late final TestRemoteDataSource testRemote;
   static late final TestRepository testRepository;
   static late final GetTests getTests;
+  static late final GetTestsByLesson getTestsByLesson;
+  static late final GetTestsByModule getTestsByModule;
   static late final GetTestDetail getTestDetail;
+  static late final StartTest startTest;
   static late final SubmitTest submitTest;
 
   // ==================== Payments ====================
@@ -101,8 +104,6 @@ class ServiceLocator {
 
   static bool _initialized = false;
 
-  /// Barcha bog'liqliklarni qurish.
-  /// Tartib muhim: avval core, keyin har feature'ning data → repo → usecase.
   static Future<void> init() async {
     if (_initialized) return;
 
@@ -169,7 +170,10 @@ class ServiceLocator {
       testRemote = TestRemoteDataSourceImpl(apiClient);
       testRepository = TestRepositoryImpl(testRemote);
       getTests = GetTests(testRepository);
+      getTestsByLesson = GetTestsByLesson(testRepository);
+      getTestsByModule = GetTestsByModule(testRepository);
       getTestDetail = GetTestDetail(testRepository);
+      startTest = StartTest(testRepository);
       submitTest = SubmitTest(testRepository);
 
       log('ServiceLocator: Tests initialized');
