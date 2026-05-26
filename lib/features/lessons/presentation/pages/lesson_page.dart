@@ -238,7 +238,15 @@ class _LessonPageState extends State<LessonPage> {
         final position = controller.value.position;
         final atEnd = position >= duration - const Duration(milliseconds: 500);
 
-        // Video o'ynayotganda har 5 soniyada progress yuborish (skip cheklovini aylanib o'tish)
+        // Oxiriga yetdi — server +1/sek cheklovini hisobga olib, position=duration ni
+        // is_fully_watched=true bo'lguncha har sekundda takrorlaymiz.
+        if (atEnd && !_videoEnded) {
+          _videoEnded = true;
+          _catchUpEnd(duration.inSeconds);
+          return;
+        }
+
+        // O'ynayotganda har 5 soniyada — skip himoyasini aylanib o'tish.
         if (controller.value.isPlaying) {
           final now = DateTime.now();
           if (_lastProgressAt == null ||
@@ -249,15 +257,6 @@ class _LessonPageState extends State<LessonPage> {
               duration: duration.inSeconds,
             );
           }
-        }
-
-        // Video oxiriga yetdi
-        if (atEnd && !controller.value.isPlaying && !_videoEnded) {
-          setState(() => _videoEnded = true);
-          _reportProgress(
-            position: duration.inSeconds,
-            duration: duration.inSeconds,
-          );
         }
       };
       controller.addListener(_videoListener!);
@@ -295,12 +294,13 @@ class _LessonPageState extends State<LessonPage> {
   Future<void> _reportProgress({
     required int position,
     required int duration,
+    bool force = false,
   }) async {
     final lesson = _selectedLesson;
     if (lesson == null || _accessToken == null) return;
     if (lesson.isFullyWatched) return;
     if (duration <= 0) return;
-    if (_isReportingProgress) return;
+    if (!force && _isReportingProgress) return;
     _isReportingProgress = true;
 
     try {
@@ -341,8 +341,41 @@ class _LessonPageState extends State<LessonPage> {
           }
         }
       });
+      _autoAdvanceToNext(lesson.id);
     } finally {
       _isReportingProgress = false;
+    }
+  }
+
+  /// Joriy dars to'liq ko'rilgach, modulda keyingi dars bo'lsa avtomatik o'tadi.
+  void _autoAdvanceToNext(String currentLessonId) {
+    for (final lessons in _lessonsByModule.values) {
+      final idx = lessons.indexWhere((l) => l.id == currentLessonId);
+      if (idx < 0) continue;
+      if (idx >= lessons.length - 1) return; // modulning oxirgi darsi
+      final next = lessons[idx + 1];
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted) _selectLesson(next, autoplay: true);
+      });
+      return;
+    }
+  }
+
+  /// Video oxiriga yetganda — server anti-skip cheklovi tufayli `last_position`
+  /// `duration`ga sakrab yeta olmaydi. Shuning uchun har sekundda `position=duration`
+  /// ni takroran yuborib, server `is_fully_watched=true` qaytarmaguncha kutamiz.
+  Future<void> _catchUpEnd(int durationSeconds) async {
+    if (durationSeconds <= 0) return;
+    for (var i = 0; i < 90; i++) {
+      if (!mounted) return;
+      if (_selectedLesson?.isFullyWatched == true) return;
+      await _reportProgress(
+        position: durationSeconds,
+        duration: durationSeconds,
+        force: true,
+      );
+      if (_selectedLesson?.isFullyWatched == true) return;
+      await Future.delayed(const Duration(seconds: 1));
     }
   }
 
