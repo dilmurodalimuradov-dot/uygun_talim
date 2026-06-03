@@ -21,8 +21,7 @@ class GetSuccessPayments implements UseCase<List<Payment>, NoParams> {
       _repository.getSuccessPayments();
 }
 
-class CreatePayment
-    implements UseCase<Map<String, dynamic>, Map<String, dynamic>> {
+class CreatePayment implements UseCase<Map<String, dynamic>, Map<String, dynamic>> {
   CreatePayment(this._repository);
   final PaymentRepository _repository;
 

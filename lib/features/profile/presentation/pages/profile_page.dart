@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/demo/demo_mode.dart';
 import '../../../../core/l10n/app_strings.dart';
 import '../../../../shared/legacy/profile_service_bridge.dart';
 import '../../../../shared/legacy/token_storage_bridge.dart';
@@ -733,13 +734,6 @@ class _ProfilePageState extends State<ProfilePage>
           onTap: _copyAccessToken,
         ),
         _buildMenuItem(
-          icon: Icons.verified_rounded,
-          title: s.profileCertificates,
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const CertificatesPage()),
-          ),
-        ),
-        _buildMenuItem(
           icon: Icons.payments_rounded,
           title: s.profilePayments,
           onTap: () => Navigator.of(context).push(
@@ -878,6 +872,7 @@ class _ProfilePageState extends State<ProfilePage>
 
             if (confirm == true) {
               await _tokenStorageService.clearTokens();
+              DemoMode.enabled = false;
               if (!context.mounted) return;
               Navigator.pushReplacementNamed(
                   context, AppRoutes.loginPage);

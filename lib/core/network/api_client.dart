@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../constants/api_constants.dart';
+import '../demo/demo_mode.dart';
 import '../error/exceptions.dart' as app_exc;
 
 /// Bitta markaziy HTTP klient.
@@ -37,6 +38,9 @@ class ApiClient {
     String? baseUrlOverride,
     Duration? timeout,
   }) async {
+    if (DemoMode.enabled) {
+      return DemoMode.mockGet(path, queryParameters);
+    }
     final uri = _buildUri(path, queryParameters, baseUrlOverride);
     final headers = await _buildHeaders(requiresAuth: requiresAuth);
 
@@ -56,6 +60,9 @@ class ApiClient {
     String? baseUrlOverride,
     Duration? timeout,
   }) async {
+    if (DemoMode.enabled) {
+      return DemoMode.mockPost(path, body);
+    }
     final uri = _buildUri(path, queryParameters, baseUrlOverride);
     final headers = await _buildHeaders(
       requiresAuth: requiresAuth,
@@ -82,6 +89,10 @@ class ApiClient {
   }) async {
     if (paths.isEmpty) {
       throw app_exc.ServerException('Endpoint ro\'yxati bo\'sh.');
+    }
+
+    if (DemoMode.enabled) {
+      return DemoMode.mockGet(paths.first, queryParameters);
     }
 
     http.Response? lastResponse;

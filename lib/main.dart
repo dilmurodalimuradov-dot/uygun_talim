@@ -45,6 +45,7 @@ class MyApp extends StatelessWidget {
     final colorScheme = ColorScheme.fromSeed(seedColor: AppColors.primary);
 
     return MaterialApp(
+      title: "Uyg'un Ta'lim",
       theme: ThemeData(colorScheme: colorScheme, useMaterial3: true),
       debugShowCheckedModeBanner: false,
       navigatorKey: AppRouter.navigatorKey,
