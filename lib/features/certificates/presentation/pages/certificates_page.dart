@@ -1,13 +1,16 @@
-import 'package:device_info_plus/device_info_plus.dart';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_file_downloader/flutter_file_downloader.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../../../core/l10n/app_strings.dart';
 import '../../../../core/utils/url_helper.dart';
 import '../../../../shared/legacy/certificate_service_bridge.dart';
 import '../../../../shared/legacy/token_storage_bridge.dart';
 import '../../../../shared/theme/app_colors.dart';
-import '/core/l10n/app_strings.dart'; // AppStrings import
 
 class CertificatesPage extends StatelessWidget {
   const CertificatesPage({super.key});
@@ -18,18 +21,49 @@ class CertificatesPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: Text(
-          s.certsTitle,
-          style: const TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
+        backgroundColor: const Color(0xFF57A57C),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        titleSpacing: 16,
+        leading: Navigator.of(context).canPop()
+            ? IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.of(context).pop(),
+        )
+            : null,
+        automaticallyImplyLeading: false,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              s.certsTitle,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+              ),
+            ),
+            Text(
+              s.certsSubtitle,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF57A57C), Color(0xFF3D8B67)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
           ),
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        foregroundColor: AppColors.textPrimary,
-        centerTitle: false,
       ),
       body: const _CertificatesList(),
     );
@@ -44,6 +78,8 @@ class _CertificatesList extends StatefulWidget {
 }
 
 class _CertificatesListState extends State<_CertificatesList> {
+  static const _prefsKey = 'downloaded_certificate_paths';
+
   final _service = CertificateService();
   final _tokenStorage = TokenStorageService();
 
@@ -52,17 +88,37 @@ class _CertificatesListState extends State<_CertificatesList> {
   List<Certificate> _items = [];
 
   String? _downloadingId;
-  Map<String, double> _downloadProgress = {};
-  String? _lastDownloadedPath;
-
-  /// Build tashqarisida (onTap, async metodlar) ishlatish uchun.
-  /// context.watch o'rniga context.read — rebuild trigger qilmaydi.
-  AppStrings get _s => AppStrings.read(context);
+  final Map<String, double> _progress = {};
+  final Map<String, String> _downloadedPaths = {};
 
   @override
   void initState() {
     super.initState();
+    _restoreDownloads();
     _load();
+  }
+
+  Future<void> _restoreDownloads() async {
+    final prefs = await SharedPreferences.getInstance();
+    final entries = prefs.getStringList(_prefsKey) ?? const [];
+    final restored = <String, String>{};
+    for (final e in entries) {
+      final i = e.indexOf('|');
+      if (i <= 0) continue;
+      final id = e.substring(0, i);
+      final path = e.substring(i + 1);
+      if (await File(path).exists()) {
+        restored[id] = path;
+      }
+    }
+    if (mounted) setState(() => _downloadedPaths.addAll(restored));
+  }
+
+  Future<void> _persistDownloads() async {
+    final prefs = await SharedPreferences.getInstance();
+    final entries =
+    _downloadedPaths.entries.map((e) => '${e.key}|${e.value}').toList();
+    await prefs.setStringList(_prefsKey, entries);
   }
 
   Future<void> _load() async {
@@ -75,7 +131,7 @@ class _CertificatesListState extends State<_CertificatesList> {
     try {
       final token = await _tokenStorage.readAccessToken();
       if (token == null || token.isEmpty) {
-        final s = AppStrings.forCode('uz'); // fallback, chunki context yo'q
+        final s = AppStrings.forCode('uz');
         throw Exception(s.certsTokenNotFound);
       }
       final items = await _service.fetchCertificates(token);
@@ -95,260 +151,196 @@ class _CertificatesListState extends State<_CertificatesList> {
     }
   }
 
-  String _getCorrectUrl(String url) => UrlHelper.normalizeMediaUrl(url);
-
-  Future<void> _openFolder(String filePath) async {
-    final s = _s;
-    try {
-      final result = await OpenFilex.open(filePath);
-      if (result.type != ResultType.done) {
-        final directory = filePath.substring(0, filePath.lastIndexOf('/'));
-        await OpenFilex.open(directory);
-      }
-    } catch (e) {
-      debugPrint('Papka ochishda xatolik: $e');
-      _snack(s.certsNoFolder, Colors.orange);
-    }
-  }
-
   Future<void> _downloadCertificate(Certificate cert) async {
-    final s = _s;
-
+    final s = AppStrings.read(context);
     if (cert.fileUrl.isEmpty) {
       _snack(s.certsNoFile, Colors.orange);
       return;
     }
 
-    bool hasPermission = await _requestStoragePermission();
-    if (!hasPermission) {
-      _showPermissionDialog();
-      return;
-    }
-
     setState(() {
       _downloadingId = cert.id;
-      _downloadProgress[cert.id] = 0;
+      _progress[cert.id] = 0;
     });
 
     try {
-      final fullUrl = _getCorrectUrl(cert.fileUrl);
-      debugPrint('Yuklanmoqda: $fullUrl');
+      final url = UrlHelper.normalizeMediaUrl(cert.fileUrl);
+      final token = await _tokenStorage.readAccessToken();
+      final fileName = _generateFileName(cert);
 
-      String fileName = _generateFileName(cert);
-      String? token = await _tokenStorage.readAccessToken();
-
-      FileDownloader.downloadFile(
-        url: fullUrl,
-        name: fileName,
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-        onProgress: (fileName, progress) {
-          debugPrint('Yuklanmoqda: $progress%');
-          if (mounted) {
-            setState(() {
-              _downloadProgress[cert.id] = progress;
-            });
-          }
-        },
-        onDownloadCompleted: (path) {
-          debugPrint('Yuklandi: $path');
-          if (mounted) {
-            setState(() {
-              _downloadingId = null;
-              _downloadProgress.remove(cert.id);
-              _lastDownloadedPath = path;
-            });
-            _showDownloadSuccessSnackBar(fileName, path);
-          }
-        },
-        onDownloadError: (errorMessage) {
-          debugPrint('Xatolik: $errorMessage');
-          if (mounted) {
-            // Callback ichida context ishlatish xavfsiz emas,
-            // shuning uchun AppStrings.forCode bilan olamiz
-            final locale = _currentLocaleCode();
-            final ls = AppStrings.forCode(locale);
-
-            setState(() {
-              _downloadingId = null;
-              _downloadProgress.remove(cert.id);
-            });
-
-            if (errorMessage.contains('401')) {
-              _snack(ls.certsNoPermission, Colors.red);
-            } else if (errorMessage.contains('403')) {
-              _snack(ls.certsNoAccess, Colors.red);
-            } else if (errorMessage.contains('404')) {
-              _snack(ls.certsFileNotFound, Colors.red);
-            } else if (errorMessage.contains('500')) {
-              _snack(ls.certsServerError, Colors.red);
-            } else {
-              _snack('${ls.certsDownload}: $errorMessage', Colors.red);
-            }
-          }
-        },
-      );
-    } catch (e) {
-      debugPrint('Umumiy xatolik: $e');
-      if (mounted) {
-        setState(() {
-          _downloadingId = null;
-          _downloadProgress.remove(cert.id);
-        });
-        _snack('${s.errorTryAgain}: $e', Colors.red);
+      final dir = await getApplicationDocumentsDirectory();
+      final certDir = Directory('${dir.path}/Sertifikatlar');
+      if (!await certDir.exists()) {
+        await certDir.create(recursive: true);
       }
-    }
-  }
+      final filePath = '${certDir.path}/$fileName';
 
-  /// Callback ichida context bo'lmaganda locale kodni olish uchun yordamchi
-  String _currentLocaleCode() {
-    try {
-      // Provider orqali olish uchun context kerak, lekin callback ichida
-      // context ishlatish xavfsiz emas — shuning uchun 'uz' fallback
-      return 'uz';
-    } catch (_) {
-      return 'uz';
-    }
-  }
+      final request = http.Request('GET', Uri.parse(url));
+      if (token != null && token.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
 
-  void _showDownloadSuccessSnackBar(String fileName, String filePath) {
-    if (!mounted) return;
-    final s = _s;
+      final response = await http.Client().send(request);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('HTTP ${response.statusCode}');
+      }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              s.certsSaved,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              fileName,
-              style: const TextStyle(fontSize: 12),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: const Duration(seconds: 5),
-        action: SnackBarAction(
-          label: s.certsOpen,
-          textColor: Colors.white,
-          onPressed: () => _openFolder(filePath),
-        ),
-      ),
-    );
-  }
+      final total = response.contentLength ?? 0;
+      var received = 0;
+      final sink = File(filePath).openWrite();
 
-  Future<bool> _requestStoragePermission() async {
-    if (Theme.of(context).platform == TargetPlatform.android) {
-      try {
-        final androidInfo = await DeviceInfoPlugin().androidInfo;
-
-        if (androidInfo.version.sdkInt >= 30) {
-          if (await Permission.manageExternalStorage.isGranted) {
-            debugPrint('Android 11+ ruxsat bor');
-            return true;
-          }
-          debugPrint('Android 11+ ruxsat so\'ralmoqda');
-          final status = await Permission.manageExternalStorage.request();
-          debugPrint('Ruxsat statusi: $status');
-          return status.isGranted;
-        } else {
-          if (await Permission.storage.isGranted) {
-            debugPrint('Android <11 ruxsat bor');
-            return true;
-          }
-          debugPrint('Android <11 ruxsat so\'ralmoqda');
-          final status = await Permission.storage.request();
-          debugPrint('Ruxsat statusi: $status');
-          return status.isGranted;
+      await for (final chunk in response.stream) {
+        sink.add(chunk);
+        received += chunk.length;
+        if (total > 0 && mounted) {
+          setState(() => _progress[cert.id] = (received / total) * 100);
         }
-      } catch (e) {
-        debugPrint('Ruxsat tekshirish xatoligi: $e');
-        return false;
       }
+      await sink.close();
+
+      if (!mounted) return;
+      setState(() {
+        _downloadingId = null;
+        _progress.remove(cert.id);
+        _downloadedPaths[cert.id] = filePath;
+      });
+      await _persistDownloads();
+      _showSuccessSheet(fileName, filePath);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _downloadingId = null;
+        _progress.remove(cert.id);
+      });
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      _snack('${s.certsDownload}: $msg', Colors.red);
     }
-    return true;
   }
 
-  void _showPermissionDialog() {
-    final s = _s;
-    showDialog(
+  Future<void> _openFile(String filePath) async {
+    final result = await OpenFilex.open(filePath);
+    if (result.type != ResultType.done && mounted) {
+      _snack(result.message, Colors.orange);
+    }
+  }
+
+  void _showSuccessSheet(String fileName, String filePath) {
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(s.certsPermissionTitle),
-        content: Text(s.certsPermissionBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              s.cancel,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await openAppSettings();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Text(s.certsGoSettings),
-          ),
-        ],
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE6F7EE),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_circle_rounded,
+                  color: Color(0xFF16A34A),
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Sertifikat yuklab olindi',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                fileName,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _openFile(filePath);
+                  },
+                  icon: const Icon(Icons.picture_as_pdf_rounded),
+                  label: const Text(
+                    'Faylni ochish',
+                    style:
+                    TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(
+                    'Yopish',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   String _generateFileName(Certificate cert) {
-    String baseName = cert.title.isNotEmpty ? cert.title : 'sertifikat';
-    baseName = baseName.replaceAll(RegExp(r'[^\w\s\u0400-\u04FF]'), '');
-    baseName = baseName.replaceAll(' ', '_');
+    var base = cert.title.isNotEmpty ? cert.title : 'sertifikat';
+    base = base.replaceAll(RegExp(r'[^\w\sЀ-ӿ]'), '');
+    base = base.replaceAll(' ', '_');
 
-    final date = cert.issuedAt.isNotEmpty
-        ? cert.issuedAt.replaceAll('-', '')
-        : DateTime.now()
-        .toIso8601String()
-        .split('T')
-        .first
-        .replaceAll('-', '');
-
-    String extension = '';
-    String lowerUrl = cert.fileUrl.toLowerCase();
-
-    if (lowerUrl.endsWith('.pdf')) {
-      extension = '.pdf';
-    } else if (lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg')) {
-      extension = '.jpg';
-    } else if (lowerUrl.endsWith('.png')) {
-      extension = '.png';
-    } else if (lowerUrl.endsWith('.doc')) {
-      extension = '.doc';
-    } else if (lowerUrl.endsWith('.docx')) {
-      extension = '.docx';
+    final lower = cert.fileUrl.toLowerCase();
+    String ext;
+    if (lower.endsWith('.pdf')) {
+      ext = '.pdf';
+    } else if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
+      ext = '.jpg';
+    } else if (lower.endsWith('.png')) {
+      ext = '.png';
     } else {
-      int lastDot = cert.fileUrl.lastIndexOf('.');
-      if (lastDot != -1 && lastDot < cert.fileUrl.length - 1) {
-        extension = cert.fileUrl.substring(lastDot);
-      } else {
-        extension = '.pdf';
-      }
+      final dot = cert.fileUrl.lastIndexOf('.');
+      ext = (dot != -1 && dot < cert.fileUrl.length - 1)
+          ? cert.fileUrl.substring(dot)
+          : '.pdf';
     }
-
-    return '$baseName$extension';
+    return '$base$ext';
   }
 
   void _snack(String msg, Color color) {
@@ -366,37 +358,236 @@ class _CertificatesListState extends State<_CertificatesList> {
   Widget build(BuildContext context) {
     final s = AppStrings.of(context);
 
-    if (_isLoading && _items.isEmpty) {
-      return _buildLoadingView(s);
-    }
-
-    if (_error != null && _items.isEmpty) {
-      return _buildErrorView(s);
-    }
+    if (_isLoading && _items.isEmpty) return _buildLoading(s);
+    if (_error != null && _items.isEmpty) return _buildError(s);
 
     return RefreshIndicator(
       onRefresh: _load,
       color: AppColors.primary,
-      backgroundColor: Colors.white,
-      strokeWidth: 3,
-      displacement: 40,
       child: _items.isEmpty
-          ? _buildEmptyView(s)
-          : ListView.builder(
+          ? _buildEmpty(s)
+          : ListView(
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        itemCount: _items.length,
-        itemBuilder: (_, i) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: _buildCertificateCard(_items[i], s),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        children: [
+          _buildHowToCard(),
+          const SizedBox(height: 14),
+          ..._items.map((c) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _buildCertificateCard(c, s),
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHowToCard() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.lightbulb_outline_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Sertifikatni telefonga saqlash uchun pastdagi '
+                  '"Yuklab olish" tugmasini bosing. Yuklab olingach, '
+                  '"Faylni ochish" tugmasi bilan ko\'rishingiz mumkin.',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textPrimary,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCertificateCard(Certificate cert, AppStrings s) {
+    final isLoading = _downloadingId == cert.id;
+    final progress = _progress[cert.id] ?? 0;
+    final downloadedPath = _downloadedPaths[cert.id];
+    final isDownloaded = downloadedPath != null;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.stroke),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.workspace_premium_rounded,
+                    size: 24,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        cert.title.isNotEmpty ? cert.title : s.certsTitle,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today_rounded,
+                            size: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            cert.issuedAt.isNotEmpty
+                                ? cert.issuedAt
+                                : s.certsUnknownDate,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (isLoading) ...[
+              LinearProgressIndicator(
+                value: progress > 0 ? progress / 100 : null,
+                backgroundColor: Colors.grey.shade200,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                minHeight: 6,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                progress > 0
+                    ? 'Yuklab olinmoqda... ${progress.toInt()}%'
+                    : 'Yuklab olinmoqda...',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ] else if (isDownloaded) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _openFile(downloadedPath),
+                      icon: const Icon(Icons.picture_as_pdf_rounded, size: 20),
+                      label: const Text(
+                        'Faylni ochish',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF16A34A),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () => _downloadCertificate(cert),
+                    icon: const Icon(Icons.refresh_rounded),
+                    tooltip: 'Qayta yuklab olish',
+                    style: IconButton.styleFrom(
+                      backgroundColor:
+                      AppColors.primary.withValues(alpha: 0.1),
+                      foregroundColor: AppColors.primary,
+                      padding: const EdgeInsets.all(12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _downloadCertificate(cert),
+                  icon: const Icon(Icons.download_rounded, size: 20),
+                  label: const Text(
+                    'Yuklab olish',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildLoadingView(AppStrings s) {
+  Widget _buildLoading(AppStrings s) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -404,7 +595,7 @@ class _CertificatesListState extends State<_CertificatesList> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: SizedBox(
@@ -430,7 +621,7 @@ class _CertificatesListState extends State<_CertificatesList> {
     );
   }
 
-  Widget _buildErrorView(AppStrings s) {
+  Widget _buildError(AppStrings s) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -440,7 +631,7 @@ class _CertificatesListState extends State<_CertificatesList> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -460,31 +651,17 @@ class _CertificatesListState extends State<_CertificatesList> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
-            Material(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(30),
-              child: InkWell(
-                onTap: _load,
-                borderRadius: BorderRadius.circular(30),
-                child: Container(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.refresh_rounded,
-                          color: Colors.white, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        s.retry,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
+            ElevatedButton.icon(
+              onPressed: _load,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(s.retry),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding:
+                const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
@@ -494,226 +671,61 @@ class _CertificatesListState extends State<_CertificatesList> {
     );
   }
 
-  Widget _buildEmptyView(AppStrings s) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.stroke),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.workspace_premium_rounded,
-                  size: 48,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                s.certsNotFound,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                s.certsNotFoundSub,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCertificateCard(Certificate item, AppStrings s) {
-    final isLoading = _downloadingId == item.id;
-    final progress = _downloadProgress[item.id] ?? 0;
-    final fileExt = _getFileExtension(item.fileUrl);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.stroke),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.textPrimary.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: isLoading ? null : () => _downloadCertificate(item),
-          borderRadius: BorderRadius.circular(16),
+  Widget _buildEmpty(AppStrings s) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        const SizedBox(height: 80),
+        Center(
           child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.workspace_premium_rounded,
-                        size: 22,
-                        color: AppColors.primary,
-                      ),
+            padding: const EdgeInsets.all(20),
+            child: Container(
+              padding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.stroke),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.title.isNotEmpty ? item.title : s.certsTitle,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            item.issuedAt.isNotEmpty
-                                ? item.issuedAt
-                                : s.certsUnknownDate,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
+                    child: Icon(
+                      Icons.workspace_premium_rounded,
+                      size: 48,
+                      color: AppColors.primary,
                     ),
-                    if (isLoading)
-                      SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            const SizedBox(
-                              width: 30,
-                              height: 30,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                              ),
-                            ),
-                            if (progress > 0)
-                              Text(
-                                '${progress.toInt()}%',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                          ],
-                        ),
-                      )
-                    else
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.download_rounded,
-                              size: 16,
-                              color: AppColors.primary,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              s.certsDownload,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-                if (isLoading && progress > 0) ...[
-                  const SizedBox(height: 12),
-                  LinearProgressIndicator(
-                    value: progress / 100,
-                    backgroundColor: Colors.grey.shade200,
-                    valueColor:
-                    const AlwaysStoppedAnimation<Color>(AppColors.primary),
-                    minHeight: 4,
-                    borderRadius: BorderRadius.circular(2),
                   ),
-                ],
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.insert_drive_file_rounded,
-                      size: 12,
+                  const SizedBox(height: 16),
+                  Text(
+                    s.certsNotFound,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    s.certsNotFoundSub,
+                    style: TextStyle(
+                      fontSize: 13,
                       color: AppColors.textSecondary,
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      fileExt,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
+      ],
     );
-  }
-
-  String _getFileExtension(String url) {
-    String lowerUrl = url.toLowerCase();
-    if (lowerUrl.endsWith('.pdf')) return 'PDF';
-    if (lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg'))
-      return 'Rasm (JPG)';
-    if (lowerUrl.endsWith('.png')) return 'Rasm (PNG)';
-    if (lowerUrl.endsWith('.doc')) return 'DOC';
-    if (lowerUrl.endsWith('.docx')) return 'DOCX';
-    return 'Fayl';
   }
 }

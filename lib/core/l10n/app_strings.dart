@@ -50,6 +50,7 @@ class AppStrings {
 
   // ---- Profile ----
   String get profileTitle => 'Profil';
+  String get profileSubtitle => 'Shaxsiy ma\'lumotlar';
   String get profileLoading => 'Profil yuklanmoqda...';
   String get profileError => 'Profilni olishda xatolik yuz berdi.';
   String get profileStudent => 'Talaba';
@@ -114,6 +115,7 @@ class AppStrings {
 
   // ---- Certificates ----
   String get certsTitle => 'Sertifikatlar';
+  String get certsSubtitle => 'Mening sertifikatlarim';
   String get certsLoading => 'Sertifikatlar yuklanmoqda...';
   String get certsNotFound => 'Sertifikatlar topilmadi';
   String get certsNotFoundSub =>
@@ -155,6 +157,17 @@ class AppStrings {
   // ---- Errors ----
   String get errorTryAgain => 'Qayta urinib ko\'ring';
   String get errorCheckConnection => 'Internet aloqasini tekshiring';
+
+  // ---- No Connection / Server Error (to'liq ekran) ----
+  String get noInternetTitle => 'Internet aloqasi yo\'q';
+  String get noInternetMessage =>
+      'Internetga ulanishda muammo yuz berdi. Iltimos, Wi-Fi yoki mobil internetni tekshirib, qayta urinib ko\'ring.';
+  String get serverErrorTitle => 'Serverda muammo';
+  String get serverErrorMessage =>
+      'Serverga ulanishda xatolik yuz berdi. Iltimos, birozdan so\'ng qayta urinib ko\'ring.';
+  String get connectionRetryButton => 'Qayta urinish';
+  String get connectionChecking => 'Tekshirilmoqda...';
+  String get connectionRestored => 'Aloqa tiklandi';
 
   // ---- Common ----
   String get cancel => 'Bekor qilish';
@@ -239,6 +252,8 @@ class _RuStrings extends AppStrings {
   // ---- Profile ----
   @override
   String get profileTitle => 'Профиль';
+  @override
+  String get profileSubtitle => 'Личные данные';
   @override
   String get profileLoading => 'Загрузка профиля...';
   @override
@@ -357,6 +372,8 @@ class _RuStrings extends AppStrings {
   @override
   String get certsTitle => 'Сертификаты';
   @override
+  String get certsSubtitle => 'Мои сертификаты';
+  @override
   String get certsLoading => 'Загрузка сертификатов...';
   @override
   String get certsNotFound => 'Сертификаты не найдены';
@@ -429,6 +446,24 @@ class _RuStrings extends AppStrings {
   String get errorTryAgain => 'Попробуйте еще раз';
   @override
   String get errorCheckConnection => 'Проверьте интернет-соединение';
+
+  // ---- No Connection / Server Error (полноэкранный) ----
+  @override
+  String get noInternetTitle => 'Нет подключения к интернету';
+  @override
+  String get noInternetMessage =>
+      'Возникла проблема с подключением к интернету. Проверьте Wi-Fi или мобильный интернет и попробуйте снова.';
+  @override
+  String get serverErrorTitle => 'Проблема на сервере';
+  @override
+  String get serverErrorMessage =>
+      'Не удалось подключиться к серверу. Пожалуйста, попробуйте снова чуть позже.';
+  @override
+  String get connectionRetryButton => 'Повторить попытку';
+  @override
+  String get connectionChecking => 'Проверка...';
+  @override
+  String get connectionRestored => 'Соединение восстановлено';
 
   // ---- Common ----
   @override
@@ -538,6 +573,8 @@ class _EnStrings extends AppStrings {
   // ---- Profile ----
   @override
   String get profileTitle => 'Profile';
+  @override
+  String get profileSubtitle => 'Personal information';
   @override
   String get profileLoading => 'Loading profile...';
   @override
@@ -656,6 +693,8 @@ class _EnStrings extends AppStrings {
   @override
   String get certsTitle => 'Certificates';
   @override
+  String get certsSubtitle => 'My certificates';
+  @override
   String get certsLoading => 'Loading certificates...';
   @override
   String get certsNotFound => 'No certificates found';
@@ -728,6 +767,24 @@ class _EnStrings extends AppStrings {
   String get errorTryAgain => 'Try again';
   @override
   String get errorCheckConnection => 'Check your internet connection';
+
+  // ---- No Connection / Server Error (full screen) ----
+  @override
+  String get noInternetTitle => 'No internet connection';
+  @override
+  String get noInternetMessage =>
+      'There was a problem connecting to the internet. Please check your Wi-Fi or mobile data and try again.';
+  @override
+  String get serverErrorTitle => 'Server problem';
+  @override
+  String get serverErrorMessage =>
+      'Could not connect to the server. Please try again in a moment.';
+  @override
+  String get connectionRetryButton => 'Retry';
+  @override
+  String get connectionChecking => 'Checking...';
+  @override
+  String get connectionRestored => 'Connection restored';
 
   // ---- Common ----
   @override

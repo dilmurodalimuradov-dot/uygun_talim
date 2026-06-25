@@ -40,6 +40,7 @@ import '../../features/tests/data/repositories/test_repository_impl.dart';
 import '../../features/tests/domain/repositories/test_repository.dart';
 import '../../features/tests/domain/usecases/test_usecases.dart';
 import '../network/api_client.dart';
+import '../providers/connection_status_provider.dart';
 import '../utils/result.dart';
 
 class ServiceLocator {
@@ -104,7 +105,7 @@ class ServiceLocator {
 
   static bool _initialized = false;
 
-  static Future<void> init() async {
+  static Future<void> init({ConnectionStatusProvider? connectionStatus}) async {
     if (_initialized) return;
 
     try {
@@ -112,6 +113,14 @@ class ServiceLocator {
 
       // ==================== Core ====================
       apiClient = ApiClient();
+
+      // Internet/server xatosi yuz berganda global holatga signal beramiz —
+      // shu orqali butun ilova ustiga "Internet/Server xatosi" ekrani
+      // chiqariladi va muammo tuzalmaguncha turadi.
+      if (connectionStatus != null) {
+        apiClient.onNetworkIssue = connectionStatus.reportNetworkFailure;
+        apiClient.onRequestSuccess = connectionStatus.reportSuccess;
+      }
 
       // ==================== Auth ====================
       tokenLocal = TokenLocalDataSourceImpl();

@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../constants/api_constants.dart';
-import '../demo/demo_mode.dart';
 import '../error/exceptions.dart' as app_exc;
 
 /// Bitta markaziy HTTP klient.
@@ -27,6 +26,16 @@ class ApiClient {
   /// 401 xatolikda chaqiriladi — tokenni tozalab login sahifasiga yo'naltirish.
   void Function()? onUnauthorized;
 
+  /// Tarmoq (internet yo'q) yoki server (5xx/timeout) xatosi yuz berganda
+  /// chaqiriladi — `ConnectionStatusProvider.reportNetworkFailure()` ga
+  /// ulanadi, shu orqali butun ilova ustiga "Internet/Server xatosi"
+  /// ekranini chiqarish mumkin bo'ladi.
+  void Function()? onNetworkIssue;
+
+  /// So'rov muvaffaqiyatli (2xx) yakunlanganda chaqiriladi — agar hozir
+  /// xatolik ekrani ko'rsatilayotgan bo'lsa, uni yashirish uchun signal.
+  void Function()? onRequestSuccess;
+
   // =========================================================================
   // Public methods
   // =========================================================================
@@ -38,9 +47,6 @@ class ApiClient {
     String? baseUrlOverride,
     Duration? timeout,
   }) async {
-    if (DemoMode.enabled) {
-      return DemoMode.mockGet(path, queryParameters);
-    }
     final uri = _buildUri(path, queryParameters, baseUrlOverride);
     final headers = await _buildHeaders(requiresAuth: requiresAuth);
 
@@ -60,9 +66,6 @@ class ApiClient {
     String? baseUrlOverride,
     Duration? timeout,
   }) async {
-    if (DemoMode.enabled) {
-      return DemoMode.mockPost(path, body);
-    }
     final uri = _buildUri(path, queryParameters, baseUrlOverride);
     final headers = await _buildHeaders(
       requiresAuth: requiresAuth,
@@ -91,10 +94,6 @@ class ApiClient {
       throw app_exc.ServerException('Endpoint ro\'yxati bo\'sh.');
     }
 
-    if (DemoMode.enabled) {
-      return DemoMode.mockGet(paths.first, queryParameters);
-    }
-
     http.Response? lastResponse;
     Object? lastError;
 
@@ -114,12 +113,16 @@ class ApiClient {
         if (response.statusCode == 404) {
           continue; // Keyingisini sinab ko'ramiz.
         }
-        return _handleResponse(response);
+        final result = _handleResponse(response);
+        onRequestSuccess?.call();
+        return result;
       } on async.TimeoutException {
         lastError = app_exc.TimeoutException();
+        onNetworkIssue?.call();
         continue;
       } on http.ClientException catch (e) {
         lastError = app_exc.NetworkException(e.message);
+        onNetworkIssue?.call();
         continue;
       }
     }
@@ -132,6 +135,7 @@ class ApiClient {
       return _handleResponse(lastResponse);
     }
 
+    onNetworkIssue?.call();
     throw app_exc.NetworkException('Hech bir endpoint javob bermadi.');
   }
 
@@ -217,20 +221,31 @@ class ApiClient {
     try {
       final response = await request().timeout(timeout ?? defaultTimeout);
       _logResponse(response);
-      return _handleResponse(response);
+      final result = _handleResponse(response);
+      onRequestSuccess?.call();
+      return result;
     } on async.TimeoutException {
+      onNetworkIssue?.call();
       throw app_exc.TimeoutException();
     } on http.ClientException catch (e) {
+      onNetworkIssue?.call();
       throw app_exc.NetworkException(e.message);
-    } on app_exc.ServerException {
+    } on app_exc.ServerException catch (e) {
+      // 5xx va 502/503 kabi xatolarni ham "server muammosi" deb belgilaymiz.
+      if (e.statusCode == null || e.statusCode! >= 500) {
+        onNetworkIssue?.call();
+      }
       rethrow;
     } on app_exc.UnauthorizedException {
       rethrow;
     } on app_exc.TimeoutException {
+      onNetworkIssue?.call();
       rethrow;
     } on app_exc.NetworkException {
+      onNetworkIssue?.call();
       rethrow;
     } catch (e) {
+      onNetworkIssue?.call();
       throw app_exc.NetworkException(e.toString());
     }
   }

@@ -1432,8 +1432,8 @@ class _ModuleTestsPageState extends State<_ModuleTestsPage> {
       final filtered = widget.allowedTestIds.isEmpty
           ? tests
           : tests
-              .where((t) => widget.allowedTestIds.contains((t['id'] ?? '').toString()))
-              .toList();
+          .where((t) => widget.allowedTestIds.contains((t['id'] ?? '').toString()))
+          .toList();
 
       // Joriy pass status — refresh'da ham server holatini aks ettiradi.
       final passed = await widget.testService.fetchModulePassedStatus(widget.moduleId);
@@ -1487,17 +1487,17 @@ class _ModuleTestsPageState extends State<_ModuleTestsPage> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _errorMessage != null
-                ? _buildError()
-                : _tests.isEmpty
-                    ? _buildEmpty()
-                    : RefreshIndicator(
-                        onRefresh: _loadTests,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                          itemCount: _tests.length,
-                          itemBuilder: (_, i) => _buildTestCard(_tests[i], i),
-                        ),
-                      ),
+            ? _buildError()
+            : _tests.isEmpty
+            ? _buildEmpty()
+            : RefreshIndicator(
+          onRefresh: _loadTests,
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            itemCount: _tests.length,
+            itemBuilder: (_, i) => _buildTestCard(_tests[i], i),
+          ),
+        ),
       ),
     );
   }
@@ -1769,6 +1769,13 @@ class _TestQuizPageState extends State<_TestQuizPage> {
   Map<String, dynamic>? _result;
   String? _attemptId;
 
+  /// Foydalanuvchi "Testni yakunlash" tugmasini bosganida barcha savollarga
+  /// javob bermagan bo'lsa ko'rinadigan validatsiya xabari.
+  String? _validationError;
+
+  /// Submit API so'rovi muvaffaqiyatsiz bo'lganda ko'rinadigan xato xabari.
+  String? _submitError;
+
   bool get _isPassed =>
       _result?['passed'] == true || _result?['is_passed'] == true;
 
@@ -1848,13 +1855,21 @@ class _TestQuizPageState extends State<_TestQuizPage> {
   String _optText(Map<String, dynamic> opt, int idx) => (opt['text'] ?? opt['label'] ?? opt['value'] ?? 'Variant ${idx + 1}').toString();
 
   Future<void> _submit() async {
+    // Javob berilmagan savollar tekshiruvi — xato inline bannerda ko'rsatiladi.
     if (_selectedAnswers.length < _questions.length) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Iltimos, barcha savollarga javob bering'), backgroundColor: Color(0xFFD14343)),
-      );
+      setState(() {
+        _validationError = 'Iltimos, barcha savollarga javob bering';
+        _submitError = null;
+      });
       return;
     }
-    setState(() => _isSubmitting = true);
+
+    setState(() {
+      _isSubmitting = true;
+      _validationError = null;
+      _submitError = null;
+    });
+
     try {
       final result = await widget.testService.submitTest(widget.testId, {
         if (_attemptId != null && _attemptId!.isNotEmpty) 'attempt_id': _attemptId,
@@ -1867,13 +1882,13 @@ class _TestQuizPageState extends State<_TestQuizPage> {
       });
       // Urinishlar tugasa is_fully_watched reset'ini backend bajaradi.
     } catch (e) {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: const Color(0xFFD14343),
-        ));
-      }
+      if (!mounted) return;
+      // Tarmoq/server xatosi — sahifa ichidagi banner orqali ko'rsatiladi,
+      // foydalanuvchi qayta urinish imkoniga ega bo'ladi.
+      setState(() {
+        _isSubmitting = false;
+        _submitError = e.toString().replaceFirst('Exception: ', '');
+      });
     }
   }
 
@@ -1929,6 +1944,35 @@ class _TestQuizPageState extends State<_TestQuizPage> {
     );
   }
 
+  /// Validatsiya va submit xatolarini quiz sahifasi ichida ko'rsatish uchun
+  /// ishlatiladi — snackbar o'rniga sahifada qoluvchi banner.
+  Widget _buildInlineError(String message) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3F3),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFD14343).withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline_rounded, size: 16, color: Color(0xFFD14343)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFD14343),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildQuiz() {
     if (_questions.isEmpty) {
       return Center(
@@ -1971,6 +2015,16 @@ class _TestQuizPageState extends State<_TestQuizPage> {
                 minHeight: 5,
                 borderRadius: BorderRadius.circular(4),
               ),
+              // Validatsiya xatosi: barcha savollarga javob berilmagan holat.
+              if (_validationError != null) ...[
+                const SizedBox(height: 10),
+                _buildInlineError(_validationError!),
+              ],
+              // Submit API xatosi: tarmoq yoki server muammosi.
+              if (_submitError != null) ...[
+                const SizedBox(height: 10),
+                _buildInlineError(_submitError!),
+              ],
             ],
           ),
         ),
@@ -2072,7 +2126,12 @@ class _TestQuizPageState extends State<_TestQuizPage> {
 
               return InkWell(
                 onTap: () {
-                  setState(() => _selectedAnswers[qId] = optId);
+                  setState(() {
+                    _selectedAnswers[qId] = optId;
+                    // Foydalanuvchi yangi javob tanlaganida validatsiya xatosini
+                    // tozalash — ortiqcha xabar ko'rinishini oldini olish.
+                    _validationError = null;
+                  });
                 },
                 borderRadius: isLast ? const BorderRadius.vertical(bottom: Radius.circular(14)) : BorderRadius.zero,
                 child: Container(
@@ -2168,11 +2227,11 @@ class _TestQuizPageState extends State<_TestQuizPage> {
                 style: TextStyle(color: Color(0xFF64748B), fontSize: 14, height: 1.4),
               )
             else if (attemptsLeft != null)
-              Text(
-                'Qolgan urinishlar: $attemptsLeft',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
-              ),
+                Text(
+                  'Qolgan urinishlar: $attemptsLeft',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
+                ),
             const SizedBox(height: 30),
             Row(
               children: [

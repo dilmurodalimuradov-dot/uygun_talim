@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // Qo'shildi
-import '../../../../core/l10n/app_strings.dart'; // Qo'shildi
-import '../../../../core/providers/locale_provider.dart'; // Qo'shildi
+import 'package:provider/provider.dart';
+import '../../../../core/l10n/app_strings.dart';
+import '../../../../core/providers/locale_provider.dart';
 import '../../../../core/utils/url_helper.dart';
 import '../../../../shared/legacy/course_service_bridge.dart';
 import '../../../../shared/legacy/token_storage_bridge.dart';
@@ -43,7 +43,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: false);
 
-    // Kontekst tayyor bo'lishi bilan darslarni yuklash
+
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadCourses());
   }
 
@@ -62,7 +62,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
       _courses = [];
     });
 
-    // Tilga mos stringlarni olish uchun vaqtinchalik 's'
+
     final s = AppStrings.forCode(context.read<LocaleProvider>().locale.languageCode);
 
     try {
@@ -111,117 +111,76 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
-    // Matnlarni lug'atdan olish va til o'zgarganda rebuild bo'lish
     final s = AppStrings.of(context);
     context.watch<LocaleProvider>();
 
     return Scaffold(
       backgroundColor: _pageBackground,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              _pageBackground,
-              _pageBackground.withValues(alpha: 0.95),
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildTopBar(s), // 's' uzatildi
-              Expanded(
-                child: RefreshIndicator(
-                  color: _brandDark,
-                  backgroundColor: Colors.white,
-                  onRefresh: _loadCourses,
-                  child: _buildBody(s), // 's' uzatildi
-                ),
-              ),
-            ],
-          ),
-        ),
+      appBar: _buildAppBar(s),
+      body: RefreshIndicator(
+        color: _brandDark,
+        backgroundColor: Colors.white,
+        onRefresh: _loadCourses,
+        child: _buildBody(s),
       ),
     );
   }
 
-  Widget _buildTopBar(AppStrings s) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: _stroke.withValues(alpha: 0.5)),
-          boxShadow: [
-            BoxShadow(
-              color: _textPrimary.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+  AppBar _buildAppBar(AppStrings s) {
+    return AppBar(
+      backgroundColor: _brand,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      titleSpacing: 16,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            s.coursesTitle,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: _brand.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.menu_book_rounded,
-                color: _brand,
-                size: 28,
-              ),
+          ),
+          Text(
+            s.coursesSubtitle,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    s.coursesTitle, // 'Kurslar'
-                    style: const TextStyle(
-                      color: _textPrimary,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    s.coursesSubtitle, // 'Barcha kurslar'
-                    style: const TextStyle(
-                      color: _textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ],
+          ),
+        ],
+      ),
+      actions: [
+        if (_courses.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '${_courses.length} ta',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
               ),
             ),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: _brandSoft,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                '${_courses.length} ta',
-                style: const TextStyle(
-                  color: _brandDark,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-          ],
+          ),
+      ],
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF57A57C), Color(0xFF3D8B67)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
         ),
       ),
     );
@@ -233,11 +192,11 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
     }
 
     if (_errorMessage != null) {
-      return _buildErrorView(s); // 's' uzatildi
+      return _buildErrorView(s);
     }
 
     if (_courses.isEmpty) {
-      return _buildEmptyView(s); // 's' uzatildi
+      return _buildEmptyView(s);
     }
 
     return LayoutBuilder(
@@ -382,7 +341,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
             const SizedBox(height: 20),
             _buildActionButton(
               onPressed: _loadCourses,
-              label: s.retry, // 'Qayta urinish'
+              label: s.retry,
               icon: Icons.refresh_rounded,
             ),
           ],
@@ -425,7 +384,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
             ),
             const SizedBox(height: 16),
             Text(
-              s.coursesNotFound, // 'Kurslar topilmadi'
+              s.coursesNotFound,
               style: const TextStyle(
                 color: _textPrimary,
                 fontSize: 16,
@@ -507,7 +466,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
                     url: imageUrl,
                     categoryTitle: categoryTitle,
                     subject: subject,
-                    fallbackLabel: s.coursesTitle, // 'Kurs' o'rniga
+                    fallbackLabel: s.coursesTitle,
                   ),
                   Padding(
                     padding: const EdgeInsets.all(16),
@@ -580,7 +539,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
                             const Spacer(),
                             if (isPurchased)
                               _buildStatusPill(
-                                s.coursesPurchased, // 'Sotib olingan'
+                                s.coursesPurchased,
                                 _brandDark,
                                 Icons.check_circle_outline,
                               )
@@ -590,7 +549,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
                         ),
                         if (isPurchased) ...[
                           const SizedBox(height: 16),
-                          _buildOpenButton(course, s), // 's' uzatildi
+                          _buildOpenButton(course, s),
                         ],
                       ],
                     ),
@@ -703,7 +662,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  s.coursesStart, // 'Kursni boshlash'
+                  s.coursesStart,
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
@@ -790,7 +749,7 @@ class _CoursesPageState extends State<CoursesPage> with TickerProviderStateMixin
   String _normalizeImageUrl(String url) => UrlHelper.normalizeMediaUrl(url);
 
   String _priceText(Course course, AppStrings s) {
-    if (!course.isPaid) return s.coursesFree; // 'Bepul'
+    if (!course.isPaid) return s.coursesFree;
     final price = course.price.isNotEmpty ? course.price : '0';
     final currency = course.currency.isNotEmpty ? course.currency : 'UZS';
     return '$price $currency'.trim();

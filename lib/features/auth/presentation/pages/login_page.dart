@@ -4,7 +4,6 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import '../../../../shared/legacy/auth_service_bridge.dart';
 import '../../../../shared/legacy/token_storage_bridge.dart';
-import '../../../../core/demo/demo_mode.dart';
 import '../../../../core/l10n/app_strings.dart';
 import 'oauth_webview_page.dart';
 import '../../../../shared/routes/app_routes.dart';
@@ -25,7 +24,6 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _isLoadingLink = false;
   bool _isSubmittingCode = false;
-  bool _isDemoLoading = false;
   String? _errorMessage;
   String? _infoMessage;
 
@@ -211,31 +209,6 @@ class _LoginPageState extends State<LoginPage> {
     return message;
   }
 
-  /// Demo rejim: SSO va serverni chetlab o'tib, mock ma'lumotlar bilan ishlaydi.
-  /// Token kerak emas. Google Play reviewerlar uchun.
-  Future<void> _demoLogin() async {
-    setState(() {
-      _isDemoLoading = true;
-      _errorMessage = null;
-      _infoMessage = null;
-    });
-
-    try {
-      DemoMode.enabled = true;
-      // ApiClient demo rejimda real so'rov yubormaydi, lekin token tekshiruvi
-      // o'tishi uchun placeholder saqlanadi.
-      await _tokenStorageService.saveTokens(accessToken: 'DEMO_MODE');
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, AppRoutes.homePage);
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = _humanizeError(error);
-        _isDemoLoading = false;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -369,29 +342,6 @@ class _LoginPageState extends State<LoginPage> {
             label: Text(
               _isLoadingLink ? s.loginLoadingLink : s.loginGetLink,
             ),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _isDemoLoading ? null : _demoLogin,
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 13),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-              side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
-              foregroundColor: AppColors.primary,
-            ),
-            icon: _isDemoLoading
-                ? SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.4,
-                      color: AppColors.primary,
-                    ),
-                  )
-                : const Icon(Icons.visibility_outlined, size: 20),
-            label: const Text('Demo sifatida kirish'),
           ),
           const SizedBox(height: 16),
           if (_infoMessage != null) ...[

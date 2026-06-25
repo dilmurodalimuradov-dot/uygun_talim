@@ -33,6 +33,12 @@ class _CourseDetailPageState extends State<CourseDetailPage>
   String? _errorMessage;
   Course? _course;
 
+  /// "Kursni boshlash" tugmasi bosilganda API xato qaytarsa inline ko'rsatiladi.
+  String? _startError;
+
+  /// To'lov jarayonida xato bo'lsa inline ko'rsatiladi.
+  String? _buyError;
+
   @override
   void initState() {
     super.initState();
@@ -101,6 +107,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
     if (_isStarting) return;
     setState(() {
       _isStarting = true;
+      _startError = null;
     });
 
     try {
@@ -110,9 +117,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
       }
       await _courseService.startCourse(token, widget.course.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(s.coursesCourseStarted)),
-      );
+      // Muvaffaqiyat snackbari kerak emas — LessonPage'ga o'tish yetarli signal.
       await _loadDetail();
       if (!mounted) return;
       await Navigator.of(context).push(
@@ -125,9 +130,10 @@ class _CourseDetailPageState extends State<CourseDetailPage>
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
-      );
+      // Xatoni sahifa ichida ko'rsatamiz — snackbar o'rniga.
+      setState(() {
+        _startError = error.toString().replaceFirst('Exception: ', '');
+      });
     } finally {
       if (mounted) {
         setState(() {
@@ -170,9 +176,10 @@ class _CourseDetailPageState extends State<CourseDetailPage>
     } catch (error) {
       _shouldRefreshOnResumeAfterPayment = false;
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
-      );
+      // Xatoni sahifa ichida ko'rsatamiz — snackbar o'rniga.
+      setState(() {
+        _buyError = error.toString().replaceFirst('Exception: ', '');
+      });
     } finally {
       if (mounted) {
         setState(() {
@@ -435,6 +442,16 @@ class _CourseDetailPageState extends State<CourseDetailPage>
                 ),
               ),
             ),
+          // Kursni boshlash xatosi — snackbar o'rniga tugma ostida.
+          if (_startError != null) ...[
+            const SizedBox(height: 10),
+            _buildInfoBanner(_startError!),
+          ],
+          // To'lov xatosi — snackbar o'rniga tugma ostida.
+          if (_buyError != null) ...[
+            const SizedBox(height: 10),
+            _buildInfoBanner(_buyError!),
+          ],
         ],
       ),
     );

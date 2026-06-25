@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/demo/demo_mode.dart';
 import '../../../../core/l10n/app_strings.dart';
 import '../../../../shared/legacy/profile_service_bridge.dart';
 import '../../../../shared/legacy/token_storage_bridge.dart';
@@ -28,7 +27,7 @@ class _ProfilePageState extends State<ProfilePage>
   String? _errorMessage;
   late AnimationController _fadeController;
 
-  /// Async va event handler metodlar uchun — listen: false
+
   AppStrings get _s => AppStrings.read(context);
 
   @override
@@ -48,7 +47,7 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Future<void> _fetchProfile() async {
-    final s = _s; // read — async metod
+    final s = _s;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -89,7 +88,7 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Future<void> _copyAccessToken() async {
-    final s = _s; // read — async metod
+    final s = _s;
     final token = await _tokenStorageService.readAccessToken();
     if (!mounted) return;
     if (token == null || token.isEmpty) {
@@ -118,7 +117,7 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   void _showTelegramSupportSheet() {
-    final s = _s; // read — build tashqarisi
+    final s = _s;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -353,15 +352,53 @@ class _ProfilePageState extends State<ProfilePage>
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
     return Scaffold(
       backgroundColor: _pageBackground,
-      body: SafeArea(
-        child: _isLoading && _profile == null
-            ? _buildLoadingView()
-            : _errorMessage != null && _profile == null
-            ? _buildErrorView()
-            : _buildContent(),
+      appBar: AppBar(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        titleSpacing: 16,
+        automaticallyImplyLeading: false,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              s.profileTitle,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+              ),
+            ),
+            Text(
+              s.profileSubtitle,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF57A57C), Color(0xFF3D8B67)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
       ),
+      body: _isLoading && _profile == null
+          ? _buildLoadingView()
+          : _errorMessage != null && _profile == null
+          ? _buildErrorView()
+          : _buildContent(),
     );
   }
 
@@ -475,87 +512,25 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _buildContent() {
-    return Column(
-      children: [
-        _buildFixedHeaderSection(),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: _refreshProfile,
-            color: AppColors.primary,
-            backgroundColor: Colors.white,
-            strokeWidth: 3,
-            displacement: 40,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              child: Column(
-                children: [
-                  const SizedBox(height: 10),
-                  _buildMenuSection(),
-                ],
-              ),
-            ),
-          ),
+    return RefreshIndicator(
+      onRefresh: _refreshProfile,
+      color: AppColors.primary,
+      backgroundColor: Colors.white,
+      strokeWidth: 3,
+      displacement: 40,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
         ),
-      ],
-    );
-  }
-
-  Widget _buildFixedHeaderSection() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.textPrimary.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        child: Column(
+          children: [
+            _buildProfileCard(),
+            const SizedBox(height: 10),
+            _buildMenuSection(),
+          ],
+        ),
       ),
-      child: Column(
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 10),
-          _buildProfileCard(),
-          const SizedBox(height: 10),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    final s = AppStrings.of(context);
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Icon(
-            Icons.person_rounded,
-            color: AppColors.primary,
-            size: 28,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            s.profileTitle,
-            style: const TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-              letterSpacing: -0.5,
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -832,7 +807,7 @@ class _ProfilePageState extends State<ProfilePage>
         color: Colors.transparent,
         child: InkWell(
           onTap: () async {
-            // Dialog o'z ichki context bilan keladi — u yerda of() xavfsiz
+
             final confirm = await showDialog<bool>(
               context: context,
               builder: (dialogCtx) {
@@ -872,7 +847,6 @@ class _ProfilePageState extends State<ProfilePage>
 
             if (confirm == true) {
               await _tokenStorageService.clearTokens();
-              DemoMode.enabled = false;
               if (!context.mounted) return;
               Navigator.pushReplacementNamed(
                   context, AppRoutes.loginPage);

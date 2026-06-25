@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../../core/providers/connection_status_provider.dart';
 import '../../../../shared/legacy/token_storage_bridge.dart';
 import '../../../../shared/routes/app_routes.dart';
 import '../../../../shared/theme/app_colors.dart';
@@ -20,6 +22,25 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkAuth() async {
+    // Avval ConnectionStatusProvider'ning boshlang'ich tarmoq/server
+    // tekshiruvi tugashini kutamiz. Agar shu paytda internet yo'qligi
+    // yoki server bilan bog'lanishda xatolik aniqlansa, `ConnectionGate`
+    // (main.dart) avtomatik ravishda to'liq ekranli xatolik sahifasini
+    // ko'rsatadi va u tuzalmaguncha turadi — splash esa orqa fonda kutib
+    // turaveradi, hech qaysi sahifaga noto'g'ri o'tib ketmaydi.
+    final connectionStatus = context.read<ConnectionStatusProvider>();
+    while (!connectionStatus.initialCheckDone) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (!mounted) return;
+    }
+
+    // Muammo hal bo'lishini kutamiz (agar bor bo'lsa) — ConnectionGate
+    // buni foydalanuvchiga ko'rsatib turadi, biz esa shu yerda kutamiz.
+    while (connectionStatus.hasIssue) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
+    }
+
     final token = await _tokenStorageService.readAccessToken();
     if (!mounted) return;
     final targetRoute =
